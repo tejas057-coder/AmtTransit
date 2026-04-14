@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from "mongoose";
+ import mongoose, { Schema, Document } from "mongoose";
 
 export type BusStatus = "on-time" | "delayed" | "at-stop";
 

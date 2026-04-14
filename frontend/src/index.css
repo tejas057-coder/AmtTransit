@@ -6,48 +6,65 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 222 47% 11%;
+    /* Rapido Dark Theme */
+    --background: 0 0% 5%;
+    /* #0D0D0D */
+    --foreground: 0 0% 100%;
+    /* #FFFFFF */
 
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card: 0 0% 10%;
+    /* #1A1A1A */
+    --card-foreground: 0 0% 100%;
+    /* #FFFFFF */
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 100%;
 
-    --primary: 217 91% 60%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 45 100% 50%;
+    /* #FFD000 (Yellow) */
+    --primary-foreground: 0 0% 0%;
+    /* Black text on yellow */
 
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary: 0 0% 100%;
+    /* White for outlined buttons */
+    --secondary-foreground: 0 0% 10%;
+    /* Card color for outlined buttons */
 
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 0 0% 12%;
+    /* Slightly lighter than card */
+    --muted-foreground: 0 0% 62%;
+    /* #A0A0A0 (Muted text) */
 
-    --accent: 210 40% 96%;
-    --accent-foreground: 222 47% 11%;
+    --accent: 45 100% 50%;
+    /* #FFD000 (same as primary) */
+    --accent-foreground: 0 0% 10%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 0 84% 50%;
+    /* #EF4444 (Red) */
     --destructive-foreground: 0 0% 100%;
 
-    --success: 142 76% 36%;
+    --success: 142 71% 45%;
+    /* #22C55E (Green) */
     --success-foreground: 0 0% 100%;
 
-    --warning: 32 95% 44%;
-    --warning-foreground: 0 0% 100%;
+    --warning: 45 100% 50%;
+    /* #FFD000 (Yellow) */
+    --warning-foreground: 0 0% 10%;
 
     --live: 142 71% 45%;
 
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 217 91% 60%;
+    --border: 0 0% 15%;
+    /* Subtle borders: rgba(255,255,255,0.08) */
+    --input: 0 0% 15%;
+    --ring: 45 100% 50%;
 
     --radius: 1rem;
 
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 222 47% 11%;
-    --sidebar-primary: 217 91% 60%;
-    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-background: 0 0% 10%;
+    /* #1A1A1A */
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 45 100% 50%;
+    --sidebar-primary-foreground: 0 0% 0%;
     --sidebar-accent: 217 91% 96%;
     --sidebar-accent-foreground: 217 91% 60%;
     --sidebar-border: 214 32% 91%;
@@ -59,6 +76,7 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground font-sans;
   }
@@ -68,23 +86,57 @@
   .live-dot {
     @apply relative;
   }
+
   .live-dot::before {
     content: '';
     @apply absolute w-2 h-2 rounded-full;
     background: hsl(var(--live));
     animation: pulse-live 1.5s ease-in-out infinite;
   }
+
   @keyframes pulse-live {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.5; transform: scale(1.5); }
+
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    50% {
+      opacity: 0.5;
+      transform: scale(1.5);
+    }
   }
+
   .pulse-ring {
     animation: pulse-ring 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
+
   @keyframes pulse-ring {
-    0% { box-shadow: 0 0 0 0 hsla(var(--live), 0.4); }
-    70% { box-shadow: 0 0 0 10px hsla(var(--live), 0); }
-    100% { box-shadow: 0 0 0 0 hsla(var(--live), 0); }
+    0% {
+      box-shadow: 0 0 0 0 hsla(var(--live), 0.4);
+    }
+
+    70% {
+      box-shadow: 0 0 0 10px hsla(var(--live), 0);
+    }
+
+    100% {
+      box-shadow: 0 0 0 0 hsla(var(--live), 0);
+    }
+  }
+
+  /* Hide scrollbar while keeping functionality */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+    /* Chrome, Safari and Opera */
   }
 }
 

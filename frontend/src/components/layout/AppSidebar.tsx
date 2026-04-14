@@ -20,17 +20,17 @@ export function AppSidebar() {
   return (
     <>
       {/* Mobile header */}
-      <header className="lg:hidden fixed top-0 left-0 right-0 z-50 h-14 bg-card border-b flex items-center justify-between px-4">
+      <header className="lg:hidden fixed top-0 left-0 right-0 z-50 h-14 bg-card border-b border-white/8 flex items-center justify-between px-4">
         <div className="flex items-center gap-2">
           <Bus className="w-6 h-6 text-primary" />
-          <span className="font-extrabold text-foreground">AmravatiTransit</span>
+          <span className="font-bold text-foreground">AmravatiTransit</span>
         </div>
         <div className="flex items-center gap-3">
           <Link to="/notifications" className="relative">
-            <Bell className="w-5 h-5 text-muted-foreground" />
-            <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full flex items-center justify-center">3</span>
+            <Bell className="w-5 h-5 text-muted-foreground hover:text-foreground transition-colors" />
+            <span className="absolute -top-1 -right-1 w-4 h-4 bg-danger text-destructive-foreground text-[10px] font-bold rounded-full flex items-center justify-center">3</span>
           </Link>
-          <button onClick={() => setMobileOpen(!mobileOpen)}>
+          <button onClick={() => setMobileOpen(!mobileOpen)} className="p-1 hover:bg-muted rounded-lg transition-colors">
             {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
         </div>
@@ -43,16 +43,16 @@ export function AppSidebar() {
 
       {/* Sidebar */}
       <aside className={cn(
-        "fixed top-0 left-0 h-full w-[280px] bg-card border-r z-50 flex flex-col transition-transform duration-300",
+        "fixed top-0 left-0 h-full w-[280px] bg-card border-r border-white/8 z-50 flex flex-col transition-transform duration-300",
         "lg:translate-x-0",
         mobileOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         {/* Logo */}
-        <div className="h-16 flex items-center gap-3 px-6 border-b">
+        <div className="h-16 flex items-center gap-3 px-6 border-b border-white/8">
           <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
             <Bus className="w-5 h-5 text-primary-foreground" />
           </div>
-          <span className="font-black text-lg text-foreground tracking-tight">AmravatiTransit</span>
+          <span className="font-bold text-lg text-foreground tracking-tight">AmravatiTransit</span>
         </div>
 
         {/* Nav */}
@@ -65,10 +65,10 @@ export function AppSidebar() {
                 to={item.path}
                 onClick={() => setMobileOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium transition-all",
+                  "flex items-center gap-3 px-4 py-3 rounded-[12px] text-sm font-medium transition-all",
                   active
-                    ? "bg-primary text-primary-foreground shadow-lg"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                 )}
               >
                 <item.icon className="w-5 h-5" />
@@ -76,7 +76,7 @@ export function AppSidebar() {
                 {item.badge && (
                   <span className={cn(
                     "ml-auto w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center",
-                    active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-destructive text-destructive-foreground"
+                    active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-danger text-destructive-foreground"
                   )}>
                     {item.badge}
                   </span>
@@ -87,17 +87,17 @@ export function AppSidebar() {
         </nav>
 
         {/* User */}
-        <div className="p-4 border-t">
-          <div className="flex items-center gap-3 px-2">
-            <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
+        <div className="p-4 border-t border-white/8">
+          <div className="flex items-center gap-3 px-2 py-3 rounded-[16px] bg-muted/30">
+            <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
               <User className="w-4 h-4 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-foreground truncate">Rahul Sharma</p>
+              <p className="text-sm font-medium text-foreground truncate">Rahul Sharma</p>
               <p className="text-xs text-muted-foreground truncate">rahul@gmail.com</p>
             </div>
-            <button className="p-1.5 rounded-lg hover:bg-accent transition-colors">
-              <LogOut className="w-4 h-4 text-muted-foreground" />
+            <button className="p-1.5 rounded-[12px] hover:bg-muted transition-colors flex-shrink-0">
+              <LogOut className="w-4 h-4 text-muted-foreground hover:text-foreground transition-colors" />
             </button>
           </div>
         </div>

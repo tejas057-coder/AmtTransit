@@ -3,14 +3,15 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AppLayout } from "@/components/layout/AppLayout";
+import { MainLayout } from "@/components/layout/MainLayout";
 import LiveMapPage from "./pages/LiveMapPage";
 import RoutesPage from "./pages/RoutesPage";
-import StopsPage from "./pages/StopsPage";
+import TripsPage from "./pages/TripsPage";
 import SchedulePage from "./pages/SchedulePage";
 import NotificationsPage from "./pages/NotificationsPage";
-import TripsPage from "./pages/TripsPage";
 import HelpPage from "./pages/HelpPage";
+import StopsPage from "./pages/StopsPage";
+import RouteDetailsPage from "./pages/RouteDetailsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -21,21 +22,30 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <AppLayout>
-          <Routes>
+        <Routes>
+          {/* Main Tab Navigation Routes - with persistent BottomNav */}
+          <Route element={<MainLayout />}>
             <Route path="/" element={<LiveMapPage />} />
             <Route path="/routes" element={<RoutesPage />} />
-            <Route path="/stops" element={<StopsPage />} />
-            <Route path="/schedule" element={<SchedulePage />} />
-            <Route path="/notifications" element={<NotificationsPage />} />
             <Route path="/trips" element={<TripsPage />} />
-            <Route path="/help" element={<HelpPage />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AppLayout>
+            <Route path="/schedule" element={<SchedulePage />} />
+            {/* Profile route for future implementation */}
+            {/* <Route path="/profile" element={<ProfilePage />} /> */}
+          </Route>
+
+          {/* Secondary Routes - without BottomNav (modal/overlay pages) */}
+          <Route path="/stops" element={<StopsPage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/help" element={<HelpPage />} />
+          <Route path="/route/:routeId" element={<RouteDetailsPage />} />
+
+          {/* 404 Not Found */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
 );
 
 export default App;
+

@@ -1,11 +1,76 @@
+# Dependencies
 node_modules/
-dist/
-.env
-.env.local
-.DS_Store
-*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+bun.lockb
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.production.local
+.env.development.local
+.env.test.local
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+out/
+
+# IDE and editor files
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+*.iml
+.project
+.classpath
+
+# Logs & debugging
+logs/
+*.log
+debug/
+.nyc_output/
+coverage/
+
+# Testing
+.c9/
+.mocha_output/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# OS files
+Thumbs.db
+Desktop.ini
+
+# Misc
+.turbo/
+*.pem
+.cache/
+
+# Runtime
+logs/
+log/
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# OS files
+Thumbs.db

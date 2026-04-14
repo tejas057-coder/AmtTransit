@@ -1,0 +1,29 @@
+# Docs .gitignore
+
+# Build outputs
+dist/
+build/
+site/
+_site/
+
+# IDE and Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# OS files
+Thumbs.db
+Desktop.ini
+
+# Logs
+logs/
+*.log
+
+# Misc
+.turbo/
+.DS_Store
