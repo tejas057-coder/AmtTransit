@@ -1,15 +1,23 @@
 import { Request, Response } from "express";
-import { stops, buses } from "../data/mockData";
-import { ApiResponse, Stop } from "../types";
+import { Stop } from "../models/Stop";
+import { Bus } from "../models/Bus";
+import { ApiResponse } from "../types";
 
-export const getStops = (req: Request, res: Response<ApiResponse<Stop[]>>) => {
+export const getStops = async (req: Request, res: Response<ApiResponse<any[]>>) => {
   try {
+    const stops = await Stop.find();
     res.json({
       success: true,
-      data: stops,
+      data: stops.map(s => ({
+        id: s.id,
+        name: s.name,
+        latitude: s.latitude,
+        longitude: s.longitude
+      })),
       timestamp: new Date().toISOString()
     });
   } catch (error) {
+    console.error("Error fetching stops:", error);
     res.status(500).json({
       success: false,
       error: "Failed to fetch stops",
@@ -18,10 +26,10 @@ export const getStops = (req: Request, res: Response<ApiResponse<Stop[]>>) => {
   }
 };
 
-export const getStopById = (req: Request, res: Response) => {
+export const getStopById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const stop = stops.find(s => s.id === id);
+    const stop = await Stop.findOne({ id });
 
     if (!stop) {
       return res.status(404).json({
@@ -31,18 +39,30 @@ export const getStopById = (req: Request, res: Response) => {
       });
     }
 
-    const busesAtStop = buses.filter(b => b.nextStop === stop.name);
+    const busesAtStop = await Bus.find({ nextStop: stop.name });
 
     res.json({
       success: true,
       data: {
-        stop,
-        buses: busesAtStop,
+        stop: {
+          id: stop.id,
+          name: stop.name,
+          latitude: stop.latitude,
+          longitude: stop.longitude
+        },
+        buses: busesAtStop.map(b => ({
+          id: b.id,
+          number: b.number,
+          routeId: b.routeId,
+          status: b.status,
+          nextStopEta: b.nextStopEta
+        })),
         busCount: busesAtStop.length
       },
       timestamp: new Date().toISOString()
     });
   } catch (error) {
+    console.error("Error fetching stop:", error);
     res.status(500).json({
       success: false,
       error: "Failed to fetch stop",
@@ -51,28 +71,35 @@ export const getStopById = (req: Request, res: Response) => {
   }
 };
 
-export const getStopsByName = (req: Request, res: Response) => {
+export const getStopsByName = async (req: Request, res: Response) => {
   try {
     const { q } = req.query;
 
     if (!q || typeof q !== "string") {
       return res.status(400).json({
         success: false,
-        error: "Query parameter 'q' is required",
+        error: "Search query required",
         timestamp: new Date().toISOString()
       });
     }
 
-    const results = stops.filter(s => 
-      s.name.toLowerCase().includes(q.toLowerCase())
-    );
+    // Search using regex
+    const stops = await Stop.find({
+      name: { $regex: q, $options: "i" }
+    });
 
     res.json({
       success: true,
-      data: results,
+      data: stops.map(s => ({
+        id: s.id,
+        name: s.name,
+        latitude: s.latitude,
+        longitude: s.longitude
+      })),
       timestamp: new Date().toISOString()
     });
   } catch (error) {
+    console.error("Error searching stops:", error);
     res.status(500).json({
       success: false,
       error: "Failed to search stops",

@@ -225,3 +225,9 @@ export const buses: Bus[] = [
     passengers: 55
   }
 ];
+
+export const mockData = {
+  routes,
+  stops,
+  buses
+};

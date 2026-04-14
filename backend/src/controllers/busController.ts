@@ -1,27 +1,42 @@
 import { Request, Response } from "express";
-import { buses, routes } from "../data/mockData";
-import { ApiResponse, Bus } from "../types";
+import { Bus } from "../models/Bus";
+import { Route } from "../models/Route";
+import { ApiResponse } from "../types";
 
-export const getBuses = (req: Request, res: Response<ApiResponse<Bus[]>>) => {
+export const getBuses = async (req: Request, res: Response<ApiResponse<any[]>>) => {
   try {
     const { routeId, status } = req.query;
     
-    let filtered = [...buses];
+    const filter: any = {};
 
     if (routeId) {
-      filtered = filtered.filter(b => b.routeId === routeId);
+      filter.routeId = routeId;
     }
 
     if (status) {
-      filtered = filtered.filter(b => b.status === status);
+      filter.status = status;
     }
+
+    const buses = await Bus.find(filter);
 
     res.json({
       success: true,
-      data: filtered,
+      data: buses.map(b => ({
+        id: b.id,
+        number: b.number,
+        routeId: b.routeId,
+        status: b.status,
+        nextStop: b.nextStop,
+        nextStopEta: b.nextStopEta,
+        latitude: b.latitude,
+        longitude: b.longitude,
+        speed: b.speed,
+        passengers: b.passengers
+      })),
       timestamp: new Date().toISOString()
     });
   } catch (error) {
+    console.error("Error fetching buses:", error);
     res.status(500).json({
       success: false,
       error: "Failed to fetch buses",
@@ -30,10 +45,10 @@ export const getBuses = (req: Request, res: Response<ApiResponse<Bus[]>>) => {
   }
 };
 
-export const getBusById = (req: Request, res: Response) => {
+export const getBusById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const bus = buses.find(b => b.id === id);
+    const bus = await Bus.findOne({ id });
 
     if (!bus) {
       return res.status(404).json({
@@ -43,17 +58,32 @@ export const getBusById = (req: Request, res: Response) => {
       });
     }
 
-    const route = routes.find(r => r.id === bus.routeId);
+    const route = await Route.findOne({ id: bus.routeId });
 
     res.json({
       success: true,
       data: {
-        ...bus,
-        route
+        id: bus.id,
+        number: bus.number,
+        routeId: bus.routeId,
+        status: bus.status,
+        nextStop: bus.nextStop,
+        nextStopEta: bus.nextStopEta,
+        latitude: bus.latitude,
+        longitude: bus.longitude,
+        speed: bus.speed,
+        passengers: bus.passengers,
+        route: route ? {
+          id: route.id,
+          name: route.name,
+          from: route.from,
+          to: route.to
+        } : null
       },
       timestamp: new Date().toISOString()
     });
   } catch (error) {
+    console.error("Error fetching bus:", error);
     res.status(500).json({
       success: false,
       error: "Failed to fetch bus",
@@ -62,15 +92,19 @@ export const getBusById = (req: Request, res: Response) => {
   }
 };
 
-export const getBusStats = (req: Request, res: Response) => {
+export const getBusStats = async (req: Request, res: Response) => {
   try {
+    const buses = await Bus.find();
+    
     const stats = {
       total: buses.length,
       onTime: buses.filter(b => b.status === "on-time").length,
       delayed: buses.filter(b => b.status === "delayed").length,
       atStop: buses.filter(b => b.status === "at-stop").length,
       totalPassengers: buses.reduce((sum, b) => sum + b.passengers, 0),
-      averageSpeed: (buses.reduce((sum, b) => sum + b.speed, 0) / buses.length).toFixed(2)
+      averageSpeed: buses.length > 0 
+        ? (buses.reduce((sum, b) => sum + b.speed, 0) / buses.length).toFixed(2)
+        : "0"
     };
 
     res.json({
@@ -79,9 +113,10 @@ export const getBusStats = (req: Request, res: Response) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
+    console.error("Error fetching bus stats:", error);
     res.status(500).json({
       success: false,
-      error: "Failed to fetch bus statistics",
+      error: "Failed to fetch bus stats",
       timestamp: new Date().toISOString()
     });
   }
