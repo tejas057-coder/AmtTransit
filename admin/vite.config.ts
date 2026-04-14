@@ -6,7 +6,7 @@ export default defineConfig({
   server: {
     host: "::",
     port: 5184,
-    strictPort: true,
+    strictPort: false,
     hmr: {
       overlay: true,
     },

@@ -1,7 +1,7 @@
 
 
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Lock, AlertCircle } from 'lucide-react';
 import { adminColors, adminSpacing, adminBorders } from '@/lib/adminDesignTokens';
 
@@ -14,6 +14,13 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const redirectPath =
+    (location.state as { from?: string } | null)?.from &&
+    (location.state as { from?: string } | null)?.from !== '/login'
+      ? (location.state as { from?: string }).from!
+      : '/dashboard';
 
   const ADMIN_PASSWORD = ((import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env
     ?.VITE_ADMIN_PASSWORD ?? 'admin'
@@ -42,7 +49,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
           // Continue with in-memory auth when storage is unavailable.
         }
         onLoginSuccess();
-        navigate('/dashboard', { replace: true });
+        navigate(redirectPath, { replace: true });
       } else {
         setError('Incorrect password. Please try again.');
         setPassword('');
