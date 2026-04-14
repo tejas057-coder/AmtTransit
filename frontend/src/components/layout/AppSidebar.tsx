@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Bus, Map, Route, MapPin, Calendar, Bell, User, HelpCircle, LogOut, Menu, X } from "lucide-react";
+import { Bus, Map, Route, MapPin, Calendar, Bell, User, HelpCircle, LogOut, Menu, X, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -88,7 +88,7 @@ export function AppSidebar() {
 
         {/* User */}
         <div className="p-4 border-t border-white/8">
-          <div className="flex items-center gap-3 px-2 py-3 rounded-[16px] bg-muted/30">
+          <div className="flex items-center gap-3 px-2 py-3 rounded-[16px] bg-muted/30 mb-3">
             <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
               <User className="w-4 h-4 text-primary" />
             </div>
@@ -100,6 +100,17 @@ export function AppSidebar() {
               <LogOut className="w-4 h-4 text-muted-foreground hover:text-foreground transition-colors" />
             </button>
           </div>
+
+          {/* Admin Button */}
+          <a
+            href="http://localhost:5174/login"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 w-full px-3 py-2 rounded-[12px] bg-primary/20 hover:bg-primary/30 text-primary hover:text-primary transition-all text-sm font-medium"
+          >
+            <Lock className="w-4 h-4" />
+            <span>Admin Panel</span>
+          </a>
         </div>
       </aside>
     </>
