@@ -269,7 +269,11 @@ export function AdminDashboard() {
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
   const handleLogout = () => {
-    localStorage.removeItem('adminAuth');
+    try {
+      localStorage.removeItem('adminAuth');
+    } catch {
+      // Ignore storage errors and continue logout navigation.
+    }
     navigate('/login');
   };
 
@@ -322,6 +326,7 @@ export function AdminDashboard() {
           ==================================================================== */}
       <aside
         style={{
+          display: 'none',
           position: 'fixed',
           left: 0,
           top: 0,
@@ -435,7 +440,7 @@ export function AdminDashboard() {
           ==================================================================== */}
       <div
         style={{
-          marginLeft: adminSizing.sidebarWidth,
+          marginLeft: 0,
           flex: 1,
           display: 'flex',
           flexDirection: 'column',

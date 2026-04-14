@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
@@ -8,6 +9,7 @@ import LiveMapPage from "./pages/LiveMapPage";
 import RoutesPage from "./pages/RoutesPage";
 import TripsPage from "./pages/TripsPage";
 import SchedulePage from "./pages/SchedulePage";
+import ProfilePage from "./pages/ProfilePage";
 import NotificationsPage from "./pages/NotificationsPage";
 import HelpPage from "./pages/HelpPage";
 import StopsPage from "./pages/StopsPage";
@@ -15,6 +17,16 @@ import RouteDetailsPage from "./pages/RouteDetailsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
+
+const AdminLoginRedirect = () => {
+  const adminLoginUrl = import.meta.env.VITE_ADMIN_LOGIN_URL ?? "http://localhost:5184/login";
+
+  useEffect(() => {
+    window.location.replace(adminLoginUrl);
+  }, [adminLoginUrl]);
+
+  return null;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -29,8 +41,7 @@ const App = () => (
             <Route path="/routes" element={<RoutesPage />} />
             <Route path="/trips" element={<TripsPage />} />
             <Route path="/schedule" element={<SchedulePage />} />
-            {/* Profile route for future implementation */}
-            {/* <Route path="/profile" element={<ProfilePage />} /> */}
+            <Route path="/profile" element={<ProfilePage />} />
           </Route>
 
           {/* Secondary Routes - without BottomNav (modal/overlay pages) */}
@@ -38,6 +49,8 @@ const App = () => (
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/help" element={<HelpPage />} />
           <Route path="/route/:routeId" element={<RouteDetailsPage />} />
+          <Route path="/login" element={<AdminLoginRedirect />} />
+          <Route path="/admin/login" element={<AdminLoginRedirect />} />
 
           {/* 404 Not Found */}
           <Route path="*" element={<NotFound />} />
