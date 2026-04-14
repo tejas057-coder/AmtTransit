@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { AdminLogin } from './pages/AdminLogin';
 import AdminDashboard from './pages/Dashboard';
 import BusManagement from './pages/BusManagement';
 import RouteManagement from './pages/RouteManagement';
 import ScheduleManagement from './pages/ScheduleManagement';
 import StopMapEditor from './pages/StopMapEditor';
-import AdminBottomNav from './components/layout/AdminBottomNav';
+import TripsAnalytics from './pages/TripsAnalytics';
+import SettingsPage from './pages/SettingsPage';
+import AdminLayout from './components/layout/AdminLayout';
 import { adminColors } from './lib/adminDesignTokens';
 
 const getAdminAuthState = () => {
@@ -22,13 +24,13 @@ interface ProtectedLayoutProps {
 }
 
 const ProtectedLayout: React.FC<ProtectedLayoutProps> = ({ isAuthenticated }) => {
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  const location = useLocation();
+  if (!isAuthenticated) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
 
   return (
-    <div style={{ minHeight: '100vh', paddingBottom: '72px' }}>
+    <AdminLayout>
       <Outlet />
-      <AdminBottomNav />
-    </div>
+    </AdminLayout>
   );
 };
 
@@ -64,8 +66,12 @@ function App() {
             <Route path="/routes" element={<RouteManagement />} />
             <Route path="/buses" element={<BusManagement />} />
             <Route path="/stops" element={<StopMapEditor />} />
+            <Route path="/stop" element={<Navigate to="/stops" replace />} />
             <Route path="/stops-map" element={<StopMapEditor />} />
             <Route path="/schedule" element={<ScheduleManagement />} />
+            <Route path="/trips" element={<TripsAnalytics />} />
+            <Route path="/analytics" element={<TripsAnalytics />} />
+            <Route path="/settings" element={<SettingsPage />} />
           </Route>
 
           {/* Default redirect */}
