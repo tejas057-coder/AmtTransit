@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { User, Mail, Phone, MapPin, Bookmark, History, Settings, Bell, LogOut, Heart, ArrowRight, Edit2, Save, X, Star, Clock, DollarSign, Shield } from "lucide-react";
+import { User, Mail, Phone, MapPin, Bookmark, History, Settings, Bell, LogOut, Heart, ArrowRight, Edit2, Save, X, Star, Clock, DollarSign, Shield, Lock } from "lucide-react";
 
 interface UserProfile {
   name: string;
@@ -68,6 +68,7 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState(mockProfile);
   const [editedProfile, setEditedProfile] = useState(mockProfile);
   const [activeTab, setActiveTab] = useState<"overview" | "trips" | "payments" | "settings">("overview");
+  const adminLoginUrl = import.meta.env.VITE_ADMIN_LOGIN_URL ?? "http://localhost:5184/login";
 
   const handleEditChange = (field: keyof UserProfile, value: string) => {
     setEditedProfile({ ...editedProfile, [field]: value });
@@ -89,12 +90,23 @@ export default function ProfilePage() {
       <div className="sticky top-0 z-40 bg-card border-b border-white/8 px-4 py-4">
         <div className="flex items-center justify-between">
           <h1 className="text-[22px] font-bold text-foreground">My Profile</h1>
-          <button
-            onClick={() => (isEditing ? handleCancelEdit() : setIsEditing(true))}
-            className="p-2 hover:bg-muted/50 rounded-lg transition-colors"
-          >
-            {isEditing ? <X className="w-5 h-5" /> : <Edit2 className="w-5 h-5" />}
-          </button>
+          <div className="flex gap-2">
+            <a
+              href={adminLoginUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-2 hover:bg-primary/20 rounded-lg transition-colors text-primary"
+              title="Open Admin Panel"
+            >
+              <Lock className="w-5 h-5" />
+            </a>
+            <button
+              onClick={() => (isEditing ? handleCancelEdit() : setIsEditing(true))}
+              className="p-2 hover:bg-muted/50 rounded-lg transition-colors"
+            >
+              {isEditing ? <X className="w-5 h-5" /> : <Edit2 className="w-5 h-5" />}
+            </button>
+          </div>
         </div>
       </div>
 

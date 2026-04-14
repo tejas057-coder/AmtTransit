@@ -17,6 +17,7 @@ const navItems = [
 export function AppSidebar() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const adminLoginUrl = import.meta.env.VITE_ADMIN_LOGIN_URL ?? "http://localhost:5184/login";
 
   return (
     <>
@@ -104,7 +105,7 @@ export function AppSidebar() {
 
           {/* Admin Button */}
           <a
-            href="http://localhost:5174/login"
+            href={adminLoginUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 w-full px-3 py-2 rounded-[12px] bg-primary/20 hover:bg-primary/30 text-primary hover:text-primary transition-all text-sm font-medium"

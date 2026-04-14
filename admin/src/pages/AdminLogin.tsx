@@ -1,7 +1,4 @@
-/**
- * Admin Login Page
- * Simple password-based authentication for admin access
- */
+
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -18,19 +15,34 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const ADMIN_PASSWORD = 'admin';
+  const ADMIN_PASSWORD = ((import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env
+    ?.VITE_ADMIN_PASSWORD ?? 'admin'
+  ).trim();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return;
+
     setError('');
+
+    const normalizedPassword = password.trim();
+    if (!normalizedPassword) {
+      setError('Please enter your password.');
+      return;
+    }
+
     setIsLoading(true);
 
     // Simulate API check
     setTimeout(() => {
-      if (password === ADMIN_PASSWORD) {
-        localStorage.setItem('adminAuth', 'true');
+      if (normalizedPassword === ADMIN_PASSWORD) {
+        try {
+          localStorage.setItem('adminAuth', 'true');
+        } catch {
+          // Continue with in-memory auth when storage is unavailable.
+        }
         onLoginSuccess();
-        navigate('/dashboard');
+        navigate('/dashboard', { replace: true });
       } else {
         setError('Incorrect password. Please try again.');
         setPassword('');
@@ -184,11 +196,6 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
                   onChange={(e) => {
                     setPassword(e.target.value);
                     if (error) setError('');
-                  }}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      handleSubmit(e as any);
-                    }
                   }}
                   placeholder="Enter password..."
                   style={{
