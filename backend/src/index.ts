@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 
+import { connectDatabase } from "./config/database";
 import routesRoute from "./routes/routesRoute";
 import busesRoute from "./routes/busesRoute";
 import stopsRoute from "./routes/stopsRoute";
@@ -11,6 +12,12 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:8082";
+
+// Initialize Database
+connectDatabase().catch((err) => {
+  console.error("Failed to start server:", err);
+  process.exit(1);
+});
 
 // Middleware
 app.use(express.json());
@@ -66,4 +73,9 @@ app.listen(PORT, () => {
   console.log("  GET  /api/stops            - Get all stops");
   console.log("  GET  /api/stops/:id        - Get single stop");
   console.log("  GET  /api/stops/search     - Search stops (query: ?q=xxx)");
+});
+
+process.on("SIGINT", () => {
+  console.log("\n⏹️  Server shutting down...");
+  process.exit(0);
 });

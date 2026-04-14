@@ -291,44 +291,68 @@ export function LeafletMap({
     `;
     document.head.appendChild(style);
 
-    // ── Route polyline with glow effect ───────────────────────────────────
+    // ── Route polylines for all routes ───────────────────────────────────
     if (showOnly !== "buses") {
-      const path: [number, number][] = stops.map((s) => [s.lat, s.lng]);
+      routes.forEach((route) => {
+        // Get the stops for this specific route
+        const routeStops = route.stops
+          .map((stopId) => stops.find((s) => s.id === stopId))
+          .filter((s) => s !== undefined) as (typeof stops)[0][];
 
-      // Glow underlayer
-      L.polyline(path, {
-        color: "#FF6B35",
-        weight: 10,
-        opacity: 0.12,
-      }).addTo(map);
+        if (routeStops.length > 1) {
+          const path: [number, number][] = routeStops.map((s) => [s.lat, s.lng]);
 
-      // Main dashed line
-      L.polyline(path, {
-        color: "#FF6B35",
-        weight: 3,
-        opacity: 0.85,
-        dashArray: "6, 6",
-        lineCap: "round",
-        lineJoin: "round",
-      }).addTo(map);
+          // Glow underlayer
+          L.polyline(path, {
+            color: route.color,
+            weight: 10,
+            opacity: 0.12,
+          }).addTo(map);
+
+          // Main dashed line
+          L.polyline(path, {
+            color: route.color,
+            weight: 3,
+            opacity: 0.85,
+            dashArray: "6, 6",
+            lineCap: "round",
+            lineJoin: "round",
+          }).addTo(map);
+        }
+      });
     }
 
-    // ── Stops ─────────────────────────────────────────────────────────────
+    // ── Stops (only for the last route: Navsari → Badnera, route id '3') ──
     if (showOnly !== "buses") {
-      stops.forEach((stop, index) => {
-        const isTerminus = index === 0 || index === stops.length - 1;
-        const marker = L.marker([stop.lat, stop.lng], {
-          icon: stopIcon(isTerminus),
-        }).addTo(map);
+      // Only render stop markers for the last route (id='3')
+      const lastRoute = routes.find((r) => r.id === "3");
+      if (lastRoute) {
+        const lastRouteStops = lastRoute.stops
+          .map((stopId) => stops.find((s) => s.id === stopId))
+          .filter((s) => s !== undefined) as (typeof stops)[0][];
 
-        marker.bindPopup(buildStopPopup(stop, index), {
-          maxWidth: 280,
-          className: "rapido-popup",
+        lastRouteStops.forEach((stop, index) => {
+          const isTerminus = index === 0 || index === lastRouteStops.length - 1;
+          const marker = L.marker([stop.lat, stop.lng], {
+            icon: stopIcon(isTerminus),
+          }).addTo(map);
+
+          // Calculate position in overall stops array for popup numbering
+          const overallIndex = stops.findIndex((s) => s.id === stop.id);
+
+          marker.bindPopup(buildStopPopup(stop, overallIndex), {
+            maxWidth: 280,
+            className: "rapido-popup",
+          });
+
+          marker.on("mouseover", function () {
+            this.openPopup();
+          });
+          marker.on("mouseout", function () {
+            this.closePopup();
+          });
         });
-
-        marker.on("mouseover", function () { this.openPopup(); });
-        marker.on("mouseout",  function () { this.closePopup(); });
-      });
+      }
     }
 
     // ── Buses ─────────────────────────────────────────────────────────────
