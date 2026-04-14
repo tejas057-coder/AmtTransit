@@ -8,6 +8,7 @@ import LiveMapPage from "./pages/LiveMapPage";
 import RoutesPage from "./pages/RoutesPage";
 import TripsPage from "./pages/TripsPage";
 import SchedulePage from "./pages/SchedulePage";
+import ProfilePage from "./pages/ProfilePage";
 import NotificationsPage from "./pages/NotificationsPage";
 import HelpPage from "./pages/HelpPage";
 import StopsPage from "./pages/StopsPage";
@@ -29,8 +30,7 @@ const App = () => (
             <Route path="/routes" element={<RoutesPage />} />
             <Route path="/trips" element={<TripsPage />} />
             <Route path="/schedule" element={<SchedulePage />} />
-            {/* Profile route for future implementation */}
-            {/* <Route path="/profile" element={<ProfilePage />} /> */}
+            <Route path="/profile" element={<ProfilePage />} />
           </Route>
 
           {/* Secondary Routes - without BottomNav (modal/overlay pages) */}

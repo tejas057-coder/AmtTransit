@@ -10,6 +10,7 @@ const navItems = [
   { label: "Schedule", icon: Calendar, path: "/schedule" },
   { label: "Notifications", icon: Bell, path: "/notifications", badge: 3 },
   { label: "My Trips", icon: User, path: "/trips" },
+  { label: "My Profile", icon: User, path: "/profile" },
   { label: "Help", icon: HelpCircle, path: "/help" },
 ];
 
