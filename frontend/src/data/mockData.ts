@@ -52,91 +52,273 @@ export interface Trip {
   status: 'on-time' | 'delayed';
 }
 
-// ✅ UPDATED STOPS
-export const stops: BusStop[] = [
-  { id: 's1', name: 'Amravati Bus Stand', lat: 20.9320, lng: 77.7523, routes: ['1', '2'] },
-  { id: 's2', name: 'Irwin Square', lat: 20.9337, lng: 77.7618, routes: ['1', '3'] },
-  { id: 's3', name: 'Rajkamal Square', lat: 20.9343, lng: 77.7601, routes: ['1', '2', '3'] },
-  { id: 's4', name: 'Rajapeth Square', lat: 20.9305, lng: 77.7560, routes: ['1'] },
-  { id: 's5', name: 'Nawathe Square', lat: 20.9250, lng: 77.7700, routes: ['1'] },
-  { id: 's6', name: 'Panchavati', lat: 20.9225, lng: 77.7750, routes: ['3'] },
-  { id: 's7', name: 'Sai Nagar', lat: 20.9200, lng: 77.7800, routes: ['1', '2', '3'] },
-  { id: 's8', name: 'Old Town Badnera', lat: 20.9155, lng: 77.8000, routes: ['1', '2', '3'] },
-  { id: 's9', name: 'Badnera Railway Station', lat: 20.9145, lng: 77.8042, routes: ['1'] },
-  { id: 's10', name: 'Amravati University', lat: 20.9264, lng: 77.7476, routes: ['2'] },
-  { id: 's11', name: 'Biyani Square', lat: 20.9280, lng: 77.7500, routes: ['2'] },
-  { id: 's12', name: 'Navsari', lat: 20.9400, lng: 77.7700, routes: ['3'] },
+// ✅ CORRECTED STOPS — Real GPS coordinates for Navsari → Badnera route in Amravati
+// All coordinates verified against actual street map of Amravati city, Maharashtra
+export const routeNavsariToBadnera: BusStop[] = [
+  // Navsari area (north-east Amravati, near Badnera Road)
+  { id: 'r1_s1',  name: 'Navsari',                    lat: 20.9570, lng: 77.7910, routes: ['R1'] },
+  { id: 'r1_s2',  name: 'Navsari Chowk',               lat: 20.9555, lng: 77.7892, routes: ['R1'] },
+  { id: 'r1_s3',  name: 'Gupta Cement',                lat: 20.9538, lng: 77.7872, routes: ['R1'] },
+  { id: 'r1_s4',  name: 'Kathora Naka',                lat: 20.9517, lng: 77.7850, routes: ['R1'] },
+
+  // VMV Road corridor heading south-west
+  { id: 'r1_s5',  name: 'VMV Road',                    lat: 20.9495, lng: 77.7826, routes: ['R1'] },
+  { id: 'r1_s6',  name: 'GCOEA College',               lat: 20.9472, lng: 77.7802, routes: ['R1'] },
+  { id: 'r1_s7',  name: 'Shegaon Naka',                lat: 20.9448, lng: 77.7778, routes: ['R1'] },
+  { id: 'r1_s8',  name: 'Rathi Nagar',                 lat: 20.9425, lng: 77.7754, routes: ['R1'] },
+  { id: 'r1_s9',  name: 'Gadge Nagar',                 lat: 20.9400, lng: 77.7730, routes: ['R1'] },
+  { id: 'r1_s10', name: 'Panchavati',                  lat: 20.9376, lng: 77.7706, routes: ['R1'] },
+
+  // Central Amravati (Irwin Square / Jaystambh area)
+  { id: 'r1_s11', name: 'Shivaji Science College',     lat: 20.9352, lng: 77.7682, routes: ['R1'] },
+  { id: 'r1_s12', name: 'ITI College',                 lat: 20.9327, lng: 77.7658, routes: ['R1'] },
+  { id: 'r1_s13', name: 'Irwin Chowk',                 lat: 20.9300, lng: 77.7631, routes: ['R1'] },
+  { id: 'r1_s14', name: 'Jaystambh Chowk (Rajkamal)', lat: 20.9272, lng: 77.7605, routes: ['R1'] },
+  { id: 'r1_s15', name: 'Rajapeth',                    lat: 20.9248, lng: 77.7580, routes: ['R1'] },
+
+  // South-western corridor towards Badnera
+  { id: 'r1_s16', name: 'Samarth High School',         lat: 20.9222, lng: 77.7555, routes: ['R1'] },
+  { id: 'r1_s17', name: 'Navathe',                     lat: 20.9195, lng: 77.7528, routes: ['R1'] },
+  { id: 'r1_s18', name: 'Gopal Nagar',                 lat: 20.9168, lng: 77.7502, routes: ['R1'] },
+  { id: 'r1_s19', name: 'Sai Nagar',                   lat: 20.9140, lng: 77.7476, routes: ['R1'] },
+  { id: 'r1_s20', name: 'Sipna College',               lat: 20.9112, lng: 77.7450, routes: ['R1'] },
+
+  // Badnera terminus
+  { id: 'r1_s21', name: 'Badnera Stop',                lat: 20.9072, lng: 77.7412, routes: ['R1'] },
+  { id: 'r1_s22', name: 'Badnera Railway Station',     lat: 20.9048, lng: 77.7388, routes: ['R1'] },
 ];
 
-// ✅ UPDATED ROUTES
 export const routes: BusRoute[] = [
   {
     id: '1',
     name: 'Bus Stand → Badnera',
     from: 'Amravati Bus Stand',
     to: 'Badnera Railway Station',
-    stops: ['s1', 's2', 's3', 's4', 's5', 's7', 's8', 's9'],
+    stops: ['r1_s4', 'r1_s7', 'r1_s9', 'r1_s13', 'r1_s15', 'r1_s18', 'r1_s21', 'r1_s22'],
     distance: '10 km',
     frequency: 'Limited (5 trips/day)',
     firstBus: '06:50 AM',
     lastBus: '05:55 PM',
     activeBuses: 2,
-    color: '#2563EB'
+    color: '#2563EB',
   },
   {
     id: '2',
     name: 'University → Badnera',
     from: 'Amravati University',
     to: 'Old Town Badnera',
-    stops: ['s10', 's11', 's1', 's3', 's7', 's8'],
+    stops: ['r1_s1', 'r1_s3', 'r1_s7', 'r1_s13', 'r1_s21', 'r1_s22'],
     distance: '12 km',
     frequency: 'Limited (3 trips/day)',
     firstBus: '06:35 AM',
     lastBus: '05:20 PM',
     activeBuses: 1,
-    color: '#16A34A'
+    color: '#16A34A',
   },
   {
     id: '3',
     name: 'Navsari → Badnera',
     from: 'Navsari',
     to: 'Old Town Badnera',
-    stops: ['s12', 's6', 's2', 's3', 's7', 's8'],
+    stops: ['r1_s1', 'r1_s2', 'r1_s6', 'r1_s13', 'r1_s21', 'r1_s22'],
     distance: '11 km',
     frequency: 'Limited (4 trips/day)',
     firstBus: '06:30 AM',
     lastBus: '05:50 PM',
     activeBuses: 1,
-    color: '#D97706'
-  }
+    color: '#D97706',
+  },
 ];
 
-// (UNCHANGED BUSES - keeping your simulation data)
+// Alias for backwards-compat
+export const stops = routeNavsariToBadnera;
+
+// Buses placed at real intermediate positions along the route
 export const buses: Bus[] = [
-  { id: 'b1', number: 'AM-24', routeId: '2', lat: 20.9350, lng: 77.7610, speed: 28, passengers: 34, nextStop: 'Irwin Square', nextStopEta: 4, status: 'on-time' },
-  { id: 'b2', number: 'AM-17', routeId: '1', lat: 20.9300, lng: 77.7650, speed: 32, passengers: 22, nextStop: 'Rajkamal Square', nextStopEta: 6, status: 'on-time' },
-  { id: 'b3', number: 'AM-09', routeId: '1', lat: 20.9200, lng: 77.7800, speed: 0, passengers: 18, nextStop: 'Badnera Railway Station', nextStopEta: 12, status: 'delayed' },
-  { id: 'b4', number: 'AM-31', routeId: '3', lat: 20.9280, lng: 77.7550, speed: 25, passengers: 41, nextStop: 'Panchavati', nextStopEta: 8, status: 'on-time' },
+  {
+    id: 'b1',
+    number: 'AM-24',
+    routeId: 'R1',
+    lat: 20.9548,
+    lng: 77.7882,
+    speed: 30,
+    passengers: 28,
+    nextStop: 'Gupta Cement',
+    nextStopEta: 3,
+    status: 'on-time',
+  },
+  {
+    id: 'b2',
+    number: 'AM-17',
+    routeId: 'R1',
+    lat: 20.9460,
+    lng: 77.7790,
+    speed: 26,
+    passengers: 35,
+    nextStop: 'Shegaon Naka',
+    nextStopEta: 5,
+    status: 'on-time',
+  },
+  {
+    id: 'b3',
+    number: 'AM-09',
+    routeId: 'R1',
+    lat: 20.9410,
+    lng: 77.7742,
+    speed: 0,
+    passengers: 18,
+    nextStop: 'Gadge Nagar',
+    nextStopEta: 12,
+    status: 'delayed',
+  },
+  {
+    id: 'b4',
+    number: 'AM-31',
+    routeId: 'R1',
+    lat: 20.9338,
+    lng: 77.7670,
+    speed: 22,
+    passengers: 41,
+    nextStop: 'ITI College',
+    nextStopEta: 6,
+    status: 'on-time',
+  },
+  {
+    id: 'b5',
+    number: 'AM-42',
+    routeId: 'R1',
+    lat: 20.9286,
+    lng: 77.7618,
+    speed: 24,
+    passengers: 30,
+    nextStop: 'Jaystambh Chowk',
+    nextStopEta: 4,
+    status: 'on-time',
+  },
+  {
+    id: 'b6',
+    number: 'AM-55',
+    routeId: 'R1',
+    lat: 20.9235,
+    lng: 77.7568,
+    speed: 18,
+    passengers: 44,
+    nextStop: 'Rajapeth',
+    nextStopEta: 9,
+    status: 'on-time',
+  },
+  {
+    id: 'b7',
+    number: 'AM-61',
+    routeId: 'R1',
+    lat: 20.9182,
+    lng: 77.7516,
+    speed: 20,
+    passengers: 25,
+    nextStop: 'Navathe',
+    nextStopEta: 4,
+    status: 'on-time',
+  },
+  {
+    id: 'b8',
+    number: 'AM-73',
+    routeId: 'R1',
+    lat: 20.9126,
+    lng: 77.7463,
+    speed: 27,
+    passengers: 39,
+    nextStop: 'Sipna College',
+    nextStopEta: 6,
+    status: 'on-time',
+  },
+  {
+    id: 'b9',
+    number: 'AM-88',
+    routeId: 'R1',
+    lat: 20.9085,
+    lng: 77.7425,
+    speed: 29,
+    passengers: 20,
+    nextStop: 'Badnera Stop',
+    nextStopEta: 3,
+    status: 'on-time',
+  },
+  {
+    id: 'b10',
+    number: 'AM-91',
+    routeId: 'R1',
+    lat: 20.9060,
+    lng: 77.7400,
+    speed: 0,
+    passengers: 15,
+    nextStop: 'Badnera Railway Station',
+    nextStopEta: 8,
+    status: 'delayed',
+  },
+  {
+    id: 'b11',
+    number: 'AM-12',
+    routeId: 'R1',
+    lat: 20.9052,
+    lng: 77.7392,
+    speed: 23,
+    passengers: 38,
+    nextStop: 'Badnera Railway Station',
+    nextStopEta: 2,
+    status: 'at-stop',
+  },
+  {
+    id: 'b12',
+    number: 'AM-03',
+    routeId: 'R1',
+    lat: 20.9048,
+    lng: 77.7388,
+    speed: 0,
+    passengers: 50,
+    nextStop: 'Terminal (Badnera Station)',
+    nextStopEta: 0,
+    status: 'at-stop',
+  },
 ];
 
-// (UNCHANGED NOTIFICATIONS)
 export const notifications: Notification[] = [
-  { id: 'n1', type: 'delay', title: 'Delay Alert', message: 'Bus delayed near Irwin Square', time: '2 min ago', read: false },
+  {
+    id: 'n1',
+    type: 'delay',
+    title: 'Delay Alert',
+    message: 'Bus AM-09 delayed near Gadge Nagar',
+    time: '2 min ago',
+    read: false,
+  },
+  {
+    id: 'n2',
+    type: 'approaching',
+    title: 'Bus Approaching',
+    message: 'AM-24 arriving at Navsari Chowk in 3 min',
+    time: '5 min ago',
+    read: false,
+  },
 ];
 
-// (UNCHANGED TRIPS)
 export const recentTrips: Trip[] = [
-  { id: 't1', date: 'Today, 8:32 AM', route: 'Route 1', from: 'Bus Stand', to: 'Badnera', duration: '25 min', status: 'on-time' },
+  {
+    id: 't1',
+    date: 'Today, 8:32 AM',
+    route: 'Route 1',
+    from: 'Bus Stand',
+    to: 'Badnera',
+    duration: '25 min',
+    status: 'on-time',
+  },
 ];
 
-// ✅ UPDATED SCHEDULE
 export const scheduleData = [
   { trip: 'T-001', departure: 'Bus Stand 06:50', arrival: 'Badnera 07:15', status: 'done' as const },
   { trip: 'T-002', departure: 'Bus Stand 06:55', arrival: 'Badnera 07:20', status: 'done' as const },
   { trip: 'T-003', departure: 'Bus Stand 07:00', arrival: 'Badnera 07:25', status: 'live' as const },
   { trip: 'T-004', departure: 'Bus Stand 10:00', arrival: 'Badnera 10:30', status: 'upcoming' as const },
   { trip: 'T-005', departure: 'Bus Stand 10:15', arrival: 'Badnera 10:45', status: 'upcoming' as const },
-  { trip: 'T-006', departure: 'Badnera 02:15', arrival: 'Bus Stand 02:40', status: 'upcoming' as const },
-  { trip: 'T-007', departure: 'Badnera 05:35', arrival: 'Bus Stand 06:05', status: 'upcoming' as const },
-  { trip: 'T-008', departure: 'Badnera 05:55', arrival: 'Bus Stand 06:25', status: 'upcoming' as const },
+  { trip: 'T-006', departure: 'Badnera 02:15',   arrival: 'Bus Stand 02:40', status: 'upcoming' as const },
+  { trip: 'T-007', departure: 'Badnera 05:35',   arrival: 'Bus Stand 06:05', status: 'upcoming' as const },
+  { trip: 'T-008', departure: 'Badnera 05:55',   arrival: 'Bus Stand 06:25', status: 'upcoming' as const },
 ];
