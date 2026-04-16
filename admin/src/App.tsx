@@ -6,6 +6,7 @@ import BusManagement from './pages/BusManagement';
 import RouteManagement from './pages/RouteManagement';
 import ScheduleManagement from './pages/ScheduleManagement';
 import StopMapEditor from './pages/StopMapEditor';
+import TripStopCreator from './pages/TripStopCreator';
 import TripsAnalytics from './pages/TripsAnalytics';
 import SettingsPage from './pages/SettingsPage';
 import AdminLayout from './components/layout/AdminLayout';
@@ -69,7 +70,7 @@ function App() {
             <Route path="/stop" element={<Navigate to="/stops" replace />} />
             <Route path="/stops-map" element={<StopMapEditor />} />
             <Route path="/schedule" element={<ScheduleManagement />} />
-            <Route path="/trips" element={<TripsAnalytics />} />
+            <Route path="/trips" element={<TripStopCreator />} />
             <Route path="/analytics" element={<TripsAnalytics />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Route>

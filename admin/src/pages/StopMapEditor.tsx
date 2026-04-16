@@ -1,6 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { MapContainer, Marker, Popup, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
+import icon from 'leaflet/dist/images/marker-icon.png';
+import iconRetina from 'leaflet/dist/images/marker-icon-2x.png';
+import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+
+// Fix Leaflet default marker icon issue in webpack/vite
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: iconRetina,
+  iconUrl: icon,
+  shadowUrl: iconShadow,
+});
 import {
   ChevronDown,
   ChevronUp,
@@ -457,7 +468,7 @@ const StopMapEditor: React.FC = () => {
   // ─── Render ───────────────────────────────────────────────────────
 
   return (
-    <div style={{ position: 'relative', display: 'flex', height: '100vh', backgroundColor: adminColors.background.page, overflow: 'hidden' }}>
+    <div style={{ position: 'relative', display: 'flex', height: 'calc(100vh - 56px)', backgroundColor: adminColors.background.page, overflow: 'hidden' }}>
       <style>{`
         .leaflet-container { background: #0D0D0D; }
         .placing-mode .leaflet-container,
