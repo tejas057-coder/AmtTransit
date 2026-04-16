@@ -44,11 +44,13 @@ const App = () => (
             <Route path="/profile" element={<ProfilePage />} />
           </Route>
 
-          {/* Secondary Routes - without BottomNav (modal/overlay pages) */}
-          <Route path="/stops" element={<StopsPage />} />
-          <Route path="/notifications" element={<NotificationsPage />} />
-          <Route path="/help" element={<HelpPage />} />
-          <Route path="/route/:routeId" element={<RouteDetailsPage />} />
+          {/* Secondary Routes - with BottomNav for consistent nav experience */}
+          <Route element={<MainLayout />}>
+            <Route path="/stops" element={<StopsPage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/help" element={<HelpPage />} />
+            <Route path="/route/:routeId" element={<RouteDetailsPage />} />
+          </Route>
           <Route path="/login" element={<AdminLoginRedirect />} />
           <Route path="/admin/login" element={<AdminLoginRedirect />} />
 
