@@ -1,6 +1,7 @@
 // vite config
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-oxc";
+import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 
 export default defineConfig({
@@ -12,7 +13,10 @@ export default defineConfig({
       overlay: true,
     },
   },
-  plugins: [react()],
+  plugins: [
+    tailwindcss(),
+    react()
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
