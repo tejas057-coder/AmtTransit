@@ -9,27 +9,28 @@ import { useToast } from '../hooks/use-toast';
 
 interface Stop {
   id: string;
-  name: string;
-  route: string;
-  lat: number;
-  lng: number;
-  latitude?: number;
-  longitude?: number;
-  role?: string;
-  createdBy?: string;
+  stop_name: string;
+  stop_code: string;
+  zone: string;
+  latitude: number;
+  longitude: number;
+  is_active: boolean;
   created_at?: string;
+  name?: string;
+  lat?: number;
+  lng?: number;
 }
 
-const ROUTE_COLORS: Record<string, string> = {
-  'Route 1 — City Center': '#C8F135',
-  'Route 2 — MIDC': '#7F77DD',
-  'Route 3 — Airport': '#D85A30',
-  'Route 4 — University': '#378ADD',
+const ZONE_COLORS: Record<string, string> = {
+  'Civil Lines': '#C8F135',
+  'Rajapeth': '#7F77DD',
+  'Badnera': '#D85A30',
+  'Camp': '#378ADD',
+  'MIDC': '#FF9F1C',
+  'University': '#2EC4B6'
 };
 
-const PRESET_ROUTES = Object.keys(ROUTE_COLORS);
-
-const getRouteColor = (route: string) => ROUTE_COLORS[route] ?? '#888888';
+const getZoneColor = (zone: string) => ZONE_COLORS[zone] ?? '#888888';
 
 // ─── Helper Components ───────────────────────────────────────────────────────
 
@@ -41,10 +42,10 @@ const MapInstance = ({ mapRef }: { mapRef: React.MutableRefObject<L.Map | null> 
   return null;
 };
 
-const MapClickHandler = ({ onMapClick }: { onMapClick: (lat: number, lng: number) => void }) => {
+const MapClickHandler = ({ onMapClick, enabled }: { onMapClick: (lat: number, lng: number) => void, enabled: boolean }) => {
   useMapEvents({
     click: (e) => {
-      onMapClick(e.latlng.lat, e.latlng.lng);
+      if (enabled) onMapClick(e.latlng.lat, e.latlng.lng);
     },
   });
   return null;
@@ -105,7 +106,7 @@ const PendingIcon = () => {
             padding: 2px 6px;
             border-radius: 4px;
             white-space: nowrap;
-          ">Drop here</div>
+          ">Place Here</div>
         </div>
       `,
       iconAnchor: [7, 7],
@@ -114,7 +115,7 @@ const PendingIcon = () => {
 
 const StopMarker = ({ stop, isSelected, onClick }: { stop: Stop, isSelected: boolean, onClick: (stop: Stop) => void }) => {
   const markerRef = useRef<L.Marker | null>(null);
-  const position: [number, number] = [stop.lat || stop.latitude || 0, stop.lng || stop.longitude || 0];
+  const position: [number, number] = [stop.latitude, stop.longitude];
 
   useEffect(() => {
     if (isSelected && markerRef.current) {
@@ -126,16 +127,18 @@ const StopMarker = ({ stop, isSelected, onClick }: { stop: Stop, isSelected: boo
     <Marker 
       ref={markerRef}
       position={position} 
-      icon={StopIcon(stop.name, getRouteColor(stop.route))}
+      icon={StopIcon(stop.stop_name || stop.name || 'Stop', getZoneColor(stop.zone))}
       eventHandlers={{
         click: () => onClick(stop)
       }}
     >
       <Popup closeButton={false}>
-        <div style={{ fontFamily: "'DM Sans', sans-serif" }}>
-          <div style={{ color: '#fff', fontSize: '13px', fontWeight: 600, marginBottom: '2px' }}>{stop.name}</div>
-          <div style={{ color: '#888', fontSize: '11px', marginBottom: '4px' }}>{stop.route}</div>
-          <div style={{ color: '#444', fontSize: '10px', fontFamily: 'monospace' }}>{position[0].toFixed(6)}, {position[1].toFixed(6)}</div>
+        <div className="p-1">
+          <div className="text-white font-bold text-sm mb-0.5">{stop.stop_name || stop.name}</div>
+          <div className="text-gray-400 text-[10px] mb-1 uppercase tracking-wider">{stop.zone} • {stop.stop_code}</div>
+          <div className={`text-[9px] font-black inline-block px-1.5 py-0.5 rounded ${stop.is_active ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-500'}`}>
+            {stop.is_active ? 'ACTIVE' : 'INACTIVE'}
+          </div>
         </div>
       </Popup>
     </Marker>
@@ -147,71 +150,90 @@ const StopMarker = ({ stop, isSelected, onClick }: { stop: Stop, isSelected: boo
 export default function StopMapEditor() {
   const [stops, setStops] = useState<Stop[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dbError, setDbError] = useState(false);
+  const [viewMode, setViewMode] = useState<'map' | 'table'>('map');
+  const [placementMode, setPlacementMode] = useState(false);
   const [search, setSearch] = useState('');
-  const [activeRouteFilter, setActiveRouteFilter] = useState('All');
+  const [activeZoneFilter, setActiveZoneFilter] = useState('All');
+  const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Inactive'>('All');
+  
   const [selectedStop, setSelectedStop] = useState<Stop | null>(null);
   const [editingStop, setEditingStop] = useState<Stop | null>(null);
   const [pendingPin, setPendingPin] = useState<{ lat: number; lng: number } | null>(null);
   const [formVisible, setFormVisible] = useState(false);
+  
   const [stopName, setStopName] = useState('');
-  const [route, setRoute] = useState('Route 1 — City Center');
-  const [customRoute, setCustomRoute] = useState(false);
-  const [customRouteName, setCustomRouteName] = useState('');
+  const [stopCode, setStopCode] = useState('');
+  const [zone, setZone] = useState('Civil Lines');
+  const [isActive, setIsActive] = useState(true);
+  
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [recentlySavedId, setRecentlySavedId] = useState<string | null>(null);
+  
   const mapRef = useRef<L.Map | null>(null);
   const { toast } = useToast();
-
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   const filteredStops = useMemo(() => {
     return stops
-      .filter(s => activeRouteFilter === 'All' || s.route === activeRouteFilter)
+      .filter(s => activeZoneFilter === 'All' || s.zone === activeZoneFilter)
+      .filter(s => {
+          if (statusFilter === 'All') return true;
+          if (statusFilter === 'Active') return s.is_active;
+          return !s.is_active;
+      })
       .filter(s =>
-        s.name.toLowerCase().includes(search.toLowerCase()) ||
-        s.route.toLowerCase().includes(search.toLowerCase())
+        (s.stop_name || s.name || '').toLowerCase().includes(search.toLowerCase()) ||
+        (s.stop_code || '').toLowerCase().includes(search.toLowerCase()) ||
+        (s.zone || '').toLowerCase().includes(search.toLowerCase())
       );
-  }, [stops, activeRouteFilter, search]);
+  }, [stops, activeZoneFilter, statusFilter, search]);
 
-  const duplicateWarning = useMemo(() => {
-    const finalRoute = customRoute ? customRouteName : route;
-    if (!stopName || !finalRoute) return null;
-    const exists = stops.find(s => 
-      s.name.trim().toLowerCase() === stopName.trim().toLowerCase() && 
-      s.route === finalRoute &&
-      s.id !== editingStop?.id
-    );
-    return exists ? `Note: A stop with this name already exists on ${finalRoute.split(' — ')[0]}` : null;
-  }, [stops, stopName, route, customRoute, customRouteName, editingStop]);
+  const stats = useMemo(() => ({
+    total: stops.length,
+    active: stops.filter(s => s.is_active).length,
+    inactive: stops.filter(s => !s.is_active).length
+  }), [stops]);
 
   const fetchStops = async (silent = false) => {
     if (!silent) setLoading(true);
-    setDbError(false);
     try {
-      const { data, error } = await supabase
-        .from('stops')
-        .select('*')
-        .order('created_at', { ascending: true });
-
-      if (error) {
-        if (error.code === '42P01' || error.message?.includes('does not exist')) {
-          setDbError(true);
-        } else {
-          toast({ title: 'Failed to load stops', description: error.message, variant: 'destructive' });
-        }
-      } else {
-        const normalized = (data || []).map((s: any) => ({
-           ...s,
-           lat: s.lat ?? s.latitude,
-           lng: s.lng ?? s.longitude
-        }));
-        setStops(normalized);
+      console.log('Fetching stops from backend API...');
+      
+      // Fetch from backend API instead of direct Supabase
+      const response = await fetch('http://localhost:5000/api/stops');
+      const result = await response.json();
+      
+      console.log('Backend response:', result);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch stops');
       }
+      
+      const data = result.data || [];
+      console.log(`Found ${data.length} stops in database`);
+      
+      const normalized = data.map((s: any) => ({
+           ...s,
+           stop_name: s.stop_name || s.name || 'Unknown Stop',
+           stop_code: s.stop_code || `STP-${s.id.slice(0,4)}`,
+           latitude: s.latitude ?? s.lat ?? 0,
+           longitude: s.longitude ?? s.lng ?? 0,
+           is_active: s.is_active ?? true,
+           zone: s.zone || 'Other'
+      }));
+      
+      console.log('Normalized stops:', normalized);
+      setStops(normalized);
     } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+      console.error("Fetch stops error:", err.message);
+      toast({ 
+        title: "Failed to load stops", 
+        description: err.message || "Make sure backend server is running",
+        variant: "destructive" 
+      });
     } finally {
       if (!silent) setLoading(false);
     }
@@ -221,81 +243,128 @@ export default function StopMapEditor() {
     fetchStops();
   }, [toast]);
 
-  useEffect(() => {
-    const channel = supabase
-      .channel('stops-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'stops' }, (payload) => {
-        if (payload.eventType === 'INSERT') {
-          const newStop = { ...payload.new, lat: payload.new.lat ?? payload.new.latitude, lng: payload.new.lng ?? payload.new.longitude } as Stop;
-          setStops(prev => {
-            if (prev.find(s => s.id === newStop.id)) return prev;
-            return [...prev, newStop];
-          });
-        }
-        if (payload.eventType === 'DELETE') {
-          setStops(prev => prev.filter(s => s.id !== payload.old.id));
-        }
-        if (payload.eventType === 'UPDATE') {
-          const updStop = { ...payload.new, lat: payload.new.lat ?? payload.new.latitude, lng: payload.new.lng ?? payload.new.longitude } as Stop;
-          setStops(prev => prev.map(s => s.id === updStop.id ? updStop : s));
-        }
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
+  const handleAddButtonClick = () => {
+    setPlacementMode(true);
+    setFormVisible(false);
+    setPendingPin(null);
+    setEditingStop(null);
+    toast({ 
+        title: "Manual Creation Started", 
+        description: "Click anywhere on the map to set the stop location.",
+    });
+  };
 
   const handleMapClick = (lat: number, lng: number) => {
+    console.log('Map clicked at:', lat, lng);
     setPendingPin({ lat, lng });
     setEditingStop(null);
+    setPlacementMode(false);
     setFormVisible(true);
     setValidationError(null);
+    setStopName('');
+    setStopCode('');
+    setZone('Civil Lines');
+    setIsActive(true);
+    toast({ 
+        title: "Location Marked", 
+        description: `Pin placed at ${lat.toFixed(5)}, ${lng.toFixed(5)}. Fill in the details below.`,
+    });
   };
 
   const handleSave = async () => {
-    const finalRoute = customRoute ? customRouteName : route;
-    
-    // VALIDATION (Issue #1)
-    if (!stopName.trim()) {
-      setValidationError("Stop Name is required");
+    if (!stopName.trim() || !stopCode.trim()) {
+      setValidationError("Name and Code are required");
       return;
     }
     
-    if (!finalRoute || (!pendingPin && !editingStop)) {
-        toast({ title: "Operation Error", description: "Route and Location are required", variant: "destructive" });
-        return;
+    if (!pendingPin && !editingStop) {
+      setValidationError("Please click on the map to place a pin first");
+      toast({ 
+        title: "Location Required", 
+        description: "Click anywhere on the map to mark the stop location before saving.",
+        variant: "destructive"
+      });
+      return;
     }
-
+    
+    const finalLat = pendingPin?.lat ?? editingStop?.latitude;
+    const finalLng = pendingPin?.lng ?? editingStop?.longitude;
+    
+    console.log('Saving stop with coordinates:', finalLat, finalLng);
+    
+    if (!finalLat || !finalLng) {
+      setValidationError("Invalid coordinates");
+      toast({ 
+        title: "Error", 
+        description: "Coordinates are missing or invalid.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setSaving(true);
-    setValidationError(null);
     try {
-      const payload: any = {
-        name: stopName.trim(),
-        route: finalRoute,
-        latitude: pendingPin?.lat ?? editingStop?.lat,
-        longitude: pendingPin?.lng ?? editingStop?.lng,
-        lat: pendingPin?.lat ?? editingStop?.lat,
-        lng: pendingPin?.lng ?? editingStop?.lng,
-        role: 'admin',
-        createdBy: 'admin_panel'
+      const payload = {
+        stop_name: stopName.trim(),
+        stop_code: stopCode.trim().toUpperCase(),
+        zone: zone,
+        latitude: finalLat,
+        longitude: finalLng,
+        is_active: isActive
       };
       
-      let response;
+      console.log('Sending payload:', payload);
+      
+      let url = 'http://localhost:5000/api/stops';
+      let method = 'POST';
+
       if (editingStop) {
-        response = await supabase.from('stops').update(payload).eq('id', editingStop.id).select().single();
-      } else {
-        response = await supabase.from('stops').insert(payload).select().single();
+        url = `http://localhost:5000/api/stops/${editingStop.id}`;
+        method = 'PUT';
       }
 
-      if (response.error) throw response.error;
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
 
-      toast({ title: editingStop ? "Stop updated" : "Stop saved" });
+      const result = await response.json();
+      console.log('Server response:', result);
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Server rejection");
+      }
+
+      toast({ 
+        title: editingStop ? "Stop Updated" : "Stop Created", 
+        description: `Successfully saved ${stopName} to database.`,
+      });
+      
+      const newStopId = result.data?.id || editingStop?.id;
       handleCancel();
-      fetchStops(true); // REFRESH LIST (Issue #3 partial - handled by state and realtime too)
+      await fetchStops(true);
+      
+      // Highlight the newly saved/updated stop
+      if (newStopId) {
+        setRecentlySavedId(newStopId);
+        setTimeout(() => setRecentlySavedId(null), 3000); // Remove highlight after 3 seconds
+        
+        // Auto-scroll to the new stop card
+        setTimeout(() => {
+          const card = cardRefs.current.get(newStopId);
+          if (card) {
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 100);
+      }
     } catch (err: any) {
-      toast({ title: "Operation failed", description: err.message, variant: "destructive" });
+      console.error("Save error:", err);
+      toast({ 
+        title: "Failed to save", 
+        description: err.message || "Check if backend server is running and database table exists.", 
+        variant: "destructive" 
+      });
     } finally {
       setSaving(false);
     }
@@ -304,49 +373,49 @@ export default function StopMapEditor() {
   const handleCancel = () => {
     setPendingPin(null);
     setEditingStop(null);
+    setPlacementMode(false);
     setFormVisible(false);
     setStopName('');
-    setCustomRoute(false);
-    setCustomRouteName('');
+    setStopCode('');
     setValidationError(null);
     setConfirmDelete(null);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     setDeleting(id);
     try {
       const { error } = await supabase.from('stops').delete().eq('id', id);
       if (error) throw error;
-      toast({ title: "Stop deleted" });
+      toast({ title: "Stop removed" });
       handleCancel();
+      fetchStops(true);
     } catch (err: any) {
-      toast({ title: "Failed to delete stop", description: err.message, variant: "destructive" });
+      toast({ title: "Operation failed", description: err.message, variant: "destructive" });
     } finally {
       setDeleting(null);
     }
   };
 
-  const handleEdit = (stop: Stop) => {
+  const handleEdit = (stop: Stop, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     setEditingStop(stop);
-    setStopName(stop.name);
-    setRoute(PRESET_ROUTES.includes(stop.route) ? stop.route : 'Route 1 — City Center');
-    if (!PRESET_ROUTES.includes(stop.route)) {
-        setCustomRoute(true);
-        setCustomRouteName(stop.route);
-    } else {
-        setCustomRoute(false);
-    }
+    setStopName(stop.stop_name || stop.name || '');
+    setStopCode(stop.stop_code || '');
+    setZone(stop.zone || 'Civil Lines');
+    setIsActive(stop.is_active);
     setFormVisible(true);
     setPendingPin(null);
     setValidationError(null);
+    setPlacementMode(false);
   };
 
   const handleStopClick = (stop: Stop) => {
     setSelectedStop(stop);
-    const pos: [number, number] = [stop.lat || stop.latitude || 0, stop.lng || stop.longitude || 0];
-    mapRef.current?.flyTo(pos, 16, { animate: true, duration: 0.8 });
-    
-    // (Issue #4) Open edit mode when marker clicked
+    const pos: [number, number] = [stop.latitude, stop.longitude];
+    if (viewMode === 'map') {
+        mapRef.current?.flyTo(pos, 16, { animate: true, duration: 0.8 });
+    }
     handleEdit(stop);
 
     const card = cardRefs.current.get(stop.id);
@@ -358,311 +427,329 @@ export default function StopMapEditor() {
   return (
     <div className="flex w-full h-[calc(100vh-56px)] bg-[#0F0F0F] text-white overflow-hidden font-['DM_Sans',_sans-serif]">
       <style>{`
-        @keyframes slide-down {
-          from { opacity: 0; transform: translateY(-8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes pulse-pin {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(200,241,53,0.4); }
-          50% { box-shadow: 0 0 0 8px rgba(200,241,53,0); }
-        }
-        @keyframes skeleton-pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.4; }
-        }
+        @keyframes slide-down { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #2A2A2A; border-radius: 4px; }
-        .leaflet-container { cursor: crosshair !important; background: #0D0D0D !important; width: 100%; height: 100%; }
-        .leaflet-popup-content-wrapper { background: #1A1A1A !important; color: white !important; border: 1px solid #2A2A2A !important; border-radius: 8px !important; }
-        .leaflet-popup-tip { background: #1A1A1A !important; }
+        .leaflet-container { cursor: crosshair !important; height: 100% !important; background: #0D0D0D !important; }
+        .leaflet-popup-content-wrapper { background: #1A1A1A !important; color: white !important; border-radius: 12px !important; border: 1px solid #2A2A2A !important; }
       `}</style>
 
       {/* ─── LEFT PANEL ─────────────────────────────────────────────────── */}
-      <aside className="w-[350px] flex-shrink-0 flex flex-col border-r border-[#1E1E1E] bg-[#0F0F0F] z-20 h-full">
-        {/* Section 1: Header (Issue #8) */}
-        <div className="p-[20px_18px_14px] border-b border-[#1E1E1E]">
-          <div className="flex items-center justify-between mb-1">
-            <div className="flex items-center gap-2">
-              <span className="text-[20px]">📍</span>
-              <h1 className="text-[18px] font-semibold text-white">Stop Manager</h1>
-            </div>
-            <div className="bg-[#C8F135] text-[#0F0F0F] text-[11px] font-bold px-[9px] py-[2px] rounded-[20px] transition-all duration-300">
-              {stops.length} stops
+      <aside className="w-[380px] flex-shrink-0 flex flex-col border-r border-[#1E1E1E] bg-[#0F0F0F] z-20 h-full">
+        {/* Header Controls */}
+        <div className="p-6 border-b border-[#1E1E1E]">
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-xl font-black text-white tracking-tight">Stop Manager</h1>
+            <div className="flex bg-[#1A1A1A] p-1 rounded-xl border border-[#2A2A2A]">
+                <button 
+                    onClick={() => setViewMode('map')}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${viewMode === 'map' ? 'bg-[#C8F135] text-[#0F0F0F]' : 'text-[#555] hover:text-white'}`}
+                >MAP</button>
+                <button 
+                    onClick={() => setViewMode('table')}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${viewMode === 'table' ? 'bg-[#C8F135] text-[#0F0F0F]' : 'text-[#555] hover:text-white'}`}
+                >TABLE</button>
             </div>
           </div>
-          <p className="text-[#555] text-[12px]">Click on the map to place a new stop</p>
+          
+          <button 
+            onClick={handleAddButtonClick}
+            className={`w-full group relative overflow-hidden rounded-2xl py-3.5 mb-4 text-xs font-black uppercase tracking-[0.2em] transition-all active:scale-[0.98] ${placementMode ? 'bg-[#333] text-[#777] border border-[#444]' : 'bg-[#C8F135] text-[#0F0F0F] shadow-lg shadow-[#C8F13522]'}`}
+          >
+            {placementMode ? "CLICK MAP TO PLACE..." : "+ Create New Stop"}
+          </button>
+
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-[#141414] p-2 rounded-xl border border-[#1E1E1E] text-center">
+                <div className="text-[9px] font-black text-[#444] uppercase mb-1">Total</div>
+                <div className="text-lg font-black text-white">{stats.total}</div>
+            </div>
+            <div className="bg-[#141414] p-2 rounded-xl border border-[#1E1E1E] text-center border-b-2 border-b-green-500/30">
+                <div className="text-[9px] font-black text-[#666] uppercase mb-1">Active</div>
+                <div className="text-lg font-black text-green-400">{stats.active}</div>
+            </div>
+            <div className="bg-[#141414] p-2 rounded-xl border border-[#1E1E1E] text-center border-b-2 border-b-red-500/30">
+                <div className="text-[9px] font-black text-[#666] uppercase mb-1">Off</div>
+                <div className="text-lg font-black text-red-500">{stats.inactive}</div>
+            </div>
+          </div>
         </div>
 
-        {/* Section 2: Create/Edit Stop Form (Issue #4) */}
+        {/* Form Overlay Section */}
         <div className="overflow-y-auto flex-1 custom-scrollbar">
           {formVisible && (
-            <div className="m-[12px_14px] bg-[#141414] border border-[#C8F13533] rounded-[12px] p-[14px] animate-[slide-down_0.25s_ease-out]">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-[8px] h-[8px] rounded-full bg-[#C8F135] shadow-[0_0_0_rgba(200,241,53,0.4)] animate-[pulse-pin_2s_infinite]"></div>
-                <span className="text-[#C8F135] text-[12px] font-semibold tracking-wide uppercase">
-                    {editingStop ? "EDIT STOP" : "NEW STOP"}
-                </span>
+            <div className="m-4 bg-[#141414] border border-[#C8F13533] rounded-2xl p-5 animate-[slide-down_0.25s_ease-out] shadow-2xl ring-1 ring-white/5 mx-6">
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-[#C8F135] animate-pulse"></div>
+                    <span className="text-[#C8F135] text-[10px] font-black uppercase tracking-[0.2em]">
+                        {editingStop ? "EDIT STOP" : "NEW STOP"}
+                    </span>
+                </div>
+                <button onClick={handleCancel} className="text-[#333] hover:text-white transition-colors">✕</button>
               </div>
 
-              <div className="space-y-3">
-                {/* Field 1: Name (Issue #1) */}
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-[#888] text-[11px] font-black uppercase mb-1 ml-1">STOP NAME *</label>
-                  <input 
-                    type="text" 
-                    placeholder="e.g. Rajapeth Bus Stand"
-                    className={`w-full bg-[#1A1A1A] border rounded-[8px] p-[8px_10px] text-white text-[13px] outline-none transition-all ${validationError ? "border-[#FF4444] shadow-[0_0_0_1px_#FF444433]" : "border-[#2A2A2A] focus:border-[#C8F135]"}`}
-                    value={stopName}
-                    onChange={e => { setStopName(e.target.value); if(validationError) setValidationError(null); }}
-                  />
-                  {validationError && <p className="text-[#FF4444] text-[10px] mt-1 ml-1 font-medium">{validationError}</p>}
-                </div>
-
-                {/* Field 2: Route & Duplicate Check (Issue #2) */}
-                <div>
-                  <label className="block text-[#888] text-[11px] font-black uppercase mb-1 ml-1">ROUTE *</label>
-                  <div className="flex gap-2 mb-2">
-                    <button 
-                      onClick={() => setCustomRoute(false)}
-                      className={`flex-1 py-1 text-[11px] rounded-[6px] transition-all ${!customRoute ? "bg-[#C8F135] text-[#0F0F0F] font-semibold" : "bg-transparent text-[#888] border border-[#2A2A2A]"}`}
-                    >
-                      Preset
-                    </button>
-                    <button 
-                      onClick={() => setCustomRoute(true)}
-                      className={`flex-1 py-1 text-[11px] rounded-[6px] transition-all ${customRoute ? "bg-[#C8F135] text-[#0F0F0F] font-semibold" : "bg-transparent text-[#888] border border-[#2A2A2A]"}`}
-                    >
-                      Custom
-                    </button>
-                  </div>
-                  {customRoute ? (
+                    <label className="block text-[#444] text-[9px] font-black uppercase mb-1 ml-1">Stop Name *</label>
                     <input 
-                      type="text" 
-                      placeholder="e.g. Route 5 — Gandhi Nagar"
-                      className="w-full bg-[#1A1A1A] border border-[#2A2A2A] rounded-[8px] p-[8px_10px] text-white text-[13px] outline-none focus:border-[#C8F135] transition-colors"
-                      value={customRouteName}
-                      onChange={e => setCustomRouteName(e.target.value)}
+                        type="text" 
+                        className={`w-full bg-[#1A1A1A] border rounded-xl p-3 text-white text-xs outline-none transition-all ${validationError ? "border-red-500" : "border-[#2A2A2A] focus:border-[#C8F135]"}`}
+                        value={stopName}
+                        onChange={e => { setStopName(e.target.value); if(validationError) setValidationError(null); }}
                     />
-                  ) : (
-                    <select 
-                      className="w-full bg-[#1A1A1A] border border-[#2A2A2A] rounded-[8px] p-[8px_10px] text-white text-[13px] outline-none focus:border-[#C8F135] transition-colors"
-                      value={route}
-                      onChange={e => setRoute(e.target.value)}
-                    >
-                      {PRESET_ROUTES.map(r => <option key={r} value={r}>{r}</option>)}
-                    </select>
-                  )}
-                  {duplicateWarning && (
-                    <div className="mt-2 bg-[#C8F135]/5 border border-[#C8F135]/20 rounded-[8px] p-[8px_10px] flex gap-2 items-center">
-                        <span className="text-[14px]">⚠️</span>
-                        <p className="text-[#C8F135] text-[10px] font-medium leading-tight">{duplicateWarning}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
+                        <label className="block text-[#444] text-[9px] font-black uppercase mb-1 ml-1">Stop Code *</label>
+                        <input 
+                            type="text" 
+                            className="w-full bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl p-3 text-white text-xs font-mono outline-none focus:border-[#C8F135]"
+                            value={stopCode}
+                            onChange={e => setStopCode(e.target.value)}
+                        />
                     </div>
-                  )}
+                    <div>
+                        <label className="block text-[#444] text-[9px] font-black uppercase mb-1 ml-1">Zone</label>
+                        <select 
+                            className="w-full bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl p-3 text-white text-xs outline-none focus:border-[#C8F135] cursor-pointer"
+                            value={zone}
+                            onChange={e => setZone(e.target.value)}
+                        >
+                            {Object.keys(ZONE_COLORS).map(z => <option key={z} value={z}>{z}</option>)}
+                        </select>
+                    </div>
                 </div>
 
-                {/* Field 3: Coordinates (Issue #7) */}
-                <div>
-                  <label className="block text-[#888] text-[11px] font-black uppercase mb-1 ml-1 flex items-center gap-1">
-                    <span className="text-[10px]">📍</span> COORDINATES (AUTO)
-                  </label>
-                  <div className="flex gap-[6px]">
-                    <div className="flex-1 relative group">
-                        <input readOnly value={(pendingPin?.lat ?? editingStop?.lat ?? 0).toFixed(6)} className="w-full bg-[#111] border border-[#1E1E1E] rounded-[8px] p-[7px_10px] text-[#555] text-[12px] font-mono outline-none" />
-                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] opacity-0 group-hover:opacity-40 transition-opacity">copy</span>
-                    </div>
-                    <div className="flex-1 relative group">
-                        <input readOnly value={(pendingPin?.lng ?? editingStop?.lng ?? 0).toFixed(6)} className="w-full bg-[#111] border border-[#1E1E1E] rounded-[8px] p-[7px_10px] text-[#555] text-[12px] font-mono outline-none" />
-                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] opacity-0 group-hover:opacity-40 transition-opacity">copy</span>
-                    </div>
-                  </div>
+                <div className="flex items-center justify-between p-3 bg-[#1A1A1A] rounded-xl border border-[#2A2A2A]">
+                    <span className="text-[10px] font-bold text-[#555] uppercase">Operational</span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" className="sr-only peer" checked={isActive} onChange={e => setIsActive(e.target.checked)} />
+                        <div className="w-9 h-5 bg-[#333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-[#666] after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[#C8F135] peer-checked:after:bg-black"></div>
+                    </label>
                 </div>
 
-                {/* Buttons (Issue #4 & Issue #5) */}
-                <div className="pt-1 space-y-2">
+                <div className="pt-2 space-y-2">
                   <button 
                     onClick={handleSave}
                     disabled={saving}
-                    className="w-full bg-[#C8F135] text-[#0F0F0F] rounded-[9px] py-[10px] text-[13px] font-bold transition-all hover:opacity-90 active:scale-[0.98]"
+                    className="w-full bg-[#C8F135] text-[#0F0F0F] rounded-xl py-3.5 text-xs font-black uppercase tracking-[0.1em] shadow-lg shadow-[#C8F13511] transition-all hover:brightness-110"
                   >
-                    {saving ? "Processing..." : editingStop ? "Update Stop" : "Save Stop"}
+                    {saving ? "SAVING..." : "COMMIT TO DATABASE"}
                   </button>
                   
                   {editingStop && !confirmDelete && (
-                     <button 
-                        onClick={() => setConfirmDelete(editingStop.id)}
-                        className="w-full bg-transparent text-[#FF4444] border border-[#FF444433] rounded-[9px] py-[8px] text-[13px] hover:bg-[#FF4444]/5 transition-all"
-                    >
-                        Delete Stop
-                    </button>
+                    <button onClick={() => setConfirmDelete(editingStop.id)} className="w-full text-red-500 py-1 text-[9px] font-black uppercase tracking-widest hover:bg-red-500/5 rounded-lg">Delete Permanently</button>
                   )}
-
                   {confirmDelete && (
-                    <div className="bg-[#FF4444]/5 border border-[#FF444433] rounded-[9px] p-2 animate-[slide-down_0.2s_ease-out]">
-                        <p className="text-[#FF4444] text-[11px] font-bold text-center mb-2 uppercase tracking-tight">Are you sure about this?</p>
-                        <div className="flex gap-2">
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); handleDelete(confirmDelete); }}
-                                disabled={deleting !== null}
-                                className="flex-1 bg-[#FF4444] text-white rounded-[7px] py-[6px] text-[11px] font-bold hover:opacity-90"
-                            >
-                                Yes, Delete
-                            </button>
-                            <button 
-                                onClick={() => setConfirmDelete(null)}
-                                className="flex-1 bg-white/5 text-white rounded-[7px] py-[6px] text-[11px] border border-white/10"
-                            >
-                                Keep Stop
-                            </button>
-                        </div>
+                    <div className="flex gap-2 animate-in slide-in-from-top-2 duration-200">
+                        <button onClick={() => handleDelete(confirmDelete)} className="flex-1 bg-red-600 text-white py-2 rounded-lg text-[9px] font-black uppercase">Yes, Kill it</button>
+                        <button onClick={() => setConfirmDelete(null)} className="flex-1 bg-[#222] text-white py-2 rounded-lg text-[9px] font-black uppercase">Cancel</button>
                     </div>
                   )}
-
-                  <button 
-                    onClick={handleCancel}
-                    className="w-full bg-transparent text-[#888] border border-[#2A2A2A] rounded-[9px] py-[8px] text-[13px] hover:bg-white/5 transition-all"
-                  >
-                    Cancel
-                  </button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Search & List Filter (Issue #3) */}
-          <div className="p-[10px_14px_6px]">
-            <div className="relative mb-3">
-              <span className="absolute left-[10px] top-1/2 -translate-y-1/2 text-[14px] text-[#555] pointer-events-none">🔍</span>
-              <input 
-                type="text" 
-                placeholder="Search by name..."
-                className="w-full bg-[#1A1A1A] border border-[#2A2A2A] rounded-[8px] p-[8px_10px_8px_32px] text-white text-[13px] outline-none focus:border-[#C8F135] transition-colors"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
-            </div>
-            
-            <div className="flex gap-2 pb-2 overflow-x-auto custom-scrollbar whitespace-nowrap">
-                {['All', ...PRESET_ROUTES].map(r => (
-                    <button
-                        key={r}
-                        onClick={() => setActiveRouteFilter(r)}
-                        className={`px-[10px] py-[4px] rounded-full text-[10px] font-semibold border transition-all ${
-                            activeRouteFilter === r
-                                ? "bg-[#C8F135] text-[#0F0F0F] border-transparent"
-                                : "bg-[#1A1A1A] text-[#555] border-[#2A2A2A] hover:text-white"
-                        }`}
-                    >
-                        {r.split(' — ')[0]}
-                    </button>
-                ))}
-            </div>
-          </div>
-
-          {/* List Status (Issue #3 Fixed) */}
-          <div className="p-[4px_14px_6px] text-[#555] text-[11px] flex justify-between items-center">
-            <span>{loading ? "Syncing database..." : `${filteredStops.length} of ${stops.length} stops available`}</span>
-             <button onClick={() => fetchStops()} className="hover:text-white transition-colors">Refresh List</button>
-          </div>
-
-          {/* Stop Card List (Issue #3 realtime update verified) */}
-          <div className="p-[4px_14px_14px]">
-            {loading ? (
-              [1, 2, 3, 4].map(i => (
-                <div key={i} className="bg-[#1A1A1A] rounded-[10px] border border-[#2A2A2A] border-l-4 border-l-[#2A2A2A] p-[12px_14px] mb-[8px] animate-[skeleton-pulse_1.5s_infinite]">
-                  <div className="h-[13px] w-[65%] bg-[#2A2A2A] rounded-[6px] mb-2"></div>
-                  <div className="h-[10px] w-[40%] bg-[#2A2A2A] rounded-[6px]"></div>
+          {/* Search & List */}
+          <div className="p-4 space-y-4">
+            <div className="space-y-2">
+                <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm opacity-20">🔍</span>
+                    <input 
+                        type="text" 
+                        placeholder="Search name, code, or zone..."
+                        className="w-full bg-[#141414] border border-[#1E1E1E] rounded-2xl p-4 pl-12 text-white text-xs outline-none focus:border-[#C8F135] shadow-inner placeholder:text-[#333]"
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                    />
                 </div>
-              ))
-            ) : filteredStops.length === 0 ? (
-              <div className="flex flex-col items-center justify-center mt-10 text-center">
-                <span className="text-[28px] mb-2">🗺️</span>
-                <div className="text-[#555] text-[13px]">No stops matching criteria</div>
-              </div>
-            ) : (
-              filteredStops.map(stop => {
+                
+                <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar px-1">
+                    {['All', 'Active', 'Inactive'].map(s => (
+                        <button 
+                            key={s}
+                            onClick={() => setStatusFilter(s as any)}
+                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${
+                                statusFilter === s ? 'bg-white text-black border-white' : 'text-[#444] border-transparent hover:text-[#888]'
+                            }`}
+                        >{s}</button>
+                    ))}
+                </div>
+            </div>
+
+            <div className="space-y-2 pb-10">
+              {filteredStops.map(stop => {
                 const isSelected = selectedStop?.id === stop.id;
-                const routeColor = getRouteColor(stop.route);
-                const pos = { lat: stop.lat || stop.latitude || 0, lng: stop.lng || stop.longitude || 0 };
+                const isRecentlySaved = recentlySavedId === stop.id;
+                const zoneColor = getZoneColor(stop.zone);
                 return (
                   <div 
                     key={stop.id}
                     ref={el => { if (el) cardRefs.current.set(stop.id, el); }}
                     onClick={() => handleStopClick(stop)}
-                    className={`group flex items-center gap-2 p-[11px_14px] mb-[7px] rounded-[10px] border transition-all cursor-pointer ${
-                      isSelected 
-                        ? "bg-[#1E2A1A] border-[#C8F135]/30 shadow-[0_4px_12px_rgba(0,0,0,0.5)] scale-[1.02]" 
-                        : "bg-[#1A1A1A] border-[#2A2A2A] hover:bg-[#1F1F1F]"
+                    className={`group relative p-4 rounded-2xl border transition-all cursor-pointer overflow-hidden ${
+                      isRecentlySaved
+                        ? "bg-[#C8F135]/10 border-[#C8F135] shadow-2xl shadow-[#C8F135]/20 animate-pulse"
+                        : isSelected 
+                          ? "bg-[#1A1A1A] border-[#C8F13533] shadow-2xl" 
+                          : "bg-[#141414] border-[#1E1E1E] hover:border-[#2A2A2A]"
                     }`}
-                    style={{ borderLeft: `4px solid ${routeColor}` }}
                   >
-                    <div className="flex-1 flex flex-col truncate">
-                      <span className={`text-[13px] font-medium truncate ${isSelected ? "text-[#C8F135]" : "text-white"}`}>
-                        {stop.name}
-                      </span>
-                      <span className="text-[#888] text-[11px] truncate">{stop.route}</span>
+                    <div 
+                        className="absolute left-0 top-0 w-1 h-full opacity-60"
+                        style={{ backgroundColor: zoneColor }}
+                    ></div>
+                    
+                    <div className="flex justify-between items-start mb-2">
+                        <div className="flex flex-col">
+                            <div className="flex items-center gap-2">
+                                <span className={`text-[13px] font-bold leading-tight ${isSelected || isRecentlySaved ? "text-[#C8F135]" : "text-white"}`}>
+                                    {stop.stop_name || stop.name}
+                                </span>
+                                {isRecentlySaved && (
+                                    <span className="text-[8px] font-black uppercase bg-[#C8F135] text-black px-2 py-0.5 rounded-full animate-pulse">
+                                        ✓ Saved
+                                    </span>
+                                )}
+                            </div>
+                            <span className="text-[9px] font-mono text-[#444] uppercase font-black">{stop.stop_code}</span>
+                        </div>
+                        
+                        {/* Quick Action Icons visible on hover/select */}
+                        <div className={`flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity ${isSelected ? 'opacity-100' : ''}`}>
+                            <button 
+                                onClick={(e) => handleEdit(stop, e)}
+                                className="w-7 h-7 flex items-center justify-center bg-[#222] border border-white/5 rounded-lg hover:bg-[#C8F135] hover:text-black transition-all"
+                            >✏️</button>
+                            <button 
+                                onClick={(e) => handleDelete(stop.id, e)}
+                                className="w-7 h-7 flex items-center justify-center bg-[#222] border border-white/5 rounded-lg hover:bg-red-600 hover:text-white transition-all text-[10px]"
+                            >🗑️</button>
+                        </div>
                     </div>
-                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                      <div className="text-[9px] font-mono text-[#555] leading-none">{pos.lat.toFixed(4)}</div>
-                      <div className="text-[9px] font-mono text-[#555] leading-none">{pos.lng.toFixed(4)}</div>
+                    
+                    <div className="flex items-center justify-between">
+                        <span className="text-[9px] text-[#555] font-black uppercase tracking-widest leading-none">{stop.zone}</span>
+                        <div className={`flex items-center gap-1.5`}>
+                            <span className={`text-[8px] font-black uppercase ${stop.is_active ? 'text-green-500' : 'text-red-500'}`}>{stop.is_active ? 'ON' : 'OFF'}</span>
+                            <div className={`w-1 h-1 rounded-full ${stop.is_active ? 'bg-green-500 shadow-[0_0_8px_#22C55E]' : 'bg-red-500 shadow-[0_0_8px_#EF4444]'}`}></div>
+                        </div>
                     </div>
                   </div>
                 );
-              })
-            )}
+              })}
+            </div>
           </div>
         </div>
       </aside>
 
       {/* ─── RIGHT PANEL ────────────────────────────────────────────────── */}
       <main className="flex-1 relative h-full">
-        {/* Map Legend (Issue #6) */}
-        <div className="absolute top-[12px] right-[12px] bg-[rgba(15,15,15,0.9)] border border-[#2A2A2A] rounded-[12px] p-[10px_14px] z-[1000] shadow-2xl backdrop-blur-md">
-            <h3 className="text-[10px] font-black uppercase text-[#888] mb-2 tracking-widest">Route Legend</h3>
-            <div className="space-y-2">
-                {PRESET_ROUTES.map(r => (
-                    <div key={r} className="flex items-center gap-2">
-                        <div className="w-[8px] h-[8px] rounded-full" style={{ backgroundColor: getRouteColor(r) }}></div>
-                        <span className="text-[10px] font-medium text-white/80">{r.split(' — ')[1]}</span>
+        {loading && (
+            <div className="absolute inset-0 z-[2000] bg-[#0F0F0F] flex items-center justify-center opacity-80">
+                <div className="w-8 h-8 border-2 border-[#C8F135] border-t-transparent rounded-full animate-spin"></div>
+            </div>
+        )}
+
+        {viewMode === 'map' ? (
+            <MapContainer 
+              center={[20.9374, 77.7796]} 
+              zoom={13} 
+              zoomControl={false} 
+              style={{ width: '100%', height: '100%', zIndex: 1 }}
+            >
+              <MapInstance mapRef={mapRef} />
+              <TileLayer
+                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                attribution='&copy; CARTO'
+              />
+              <MapClickHandler onMapClick={handleMapClick} enabled={placementMode} />
+              
+              {stops.map(stop => (
+                <StopMarker 
+                  key={stop.id}
+                  stop={stop}
+                  isSelected={selectedStop?.id === stop.id}
+                  onClick={handleStopClick}
+                />
+              ))}
+
+              {pendingPin && (
+                <Marker position={[pendingPin.lat, pendingPin.lng]} icon={PendingIcon()} />
+              )}
+            </MapContainer>
+        ) : (
+            <div className="w-full h-full bg-[#111] p-10 overflow-y-auto no-scrollbar animate-in zoom-in-95 duration-300">
+                <div className="max-w-6xl mx-auto">
+                    <div className="flex items-center justify-between mb-8">
+                        <div className="flex flex-col">
+                            <h2 className="text-3xl font-black text-white tracking-tighter">Transit Points Registry</h2>
+                            <p className="text-[#555] text-xs font-bold uppercase tracking-widest">Database State History</p>
+                        </div>
+                        <button 
+                            onClick={handleAddButtonClick}
+                            className="bg-[#C8F135] text-black px-6 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl shadow-[#C8F13511]"
+                        >+ New Entry</button>
                     </div>
-                ))}
-                 <div className="flex items-center gap-2 pt-1 border-t border-white/5">
-                    <div className="w-[8px] h-[8px] rounded-full bg-[#888]"></div>
-                    <span className="text-[10px] font-medium text-white/50">Custom</span>
+
+                    <div className="bg-[#141414] border border-[#1E1E1E] rounded-3xl overflow-hidden shadow-2xl">
+                        <table className="w-full text-left">
+                            <thead className="bg-[#1A1A1A] border-b border-[#2A2A2A]">
+                                <tr>
+                                    <th className="px-6 py-5 text-[9px] font-black text-[#555] uppercase tracking-widest text-center w-16">PIN</th>
+                                    <th className="px-6 py-5 text-[9px] font-black text-[#555] uppercase tracking-widest">Identifier</th>
+                                    <th className="px-6 py-5 text-[9px] font-black text-[#555] uppercase tracking-widest">Description</th>
+                                    <th className="px-6 py-5 text-[9px] font-black text-[#555] uppercase tracking-widest">Zone</th>
+                                    <th className="px-6 py-5 text-[9px] font-black text-[#555] uppercase tracking-widest">Status</th>
+                                    <th className="px-6 py-5 text-[9px] font-black text-[#555] uppercase tracking-widest text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-[#1E1E1E]">
+                                {filteredStops.map(stop => (
+                                    <tr 
+                                        key={stop.id} 
+                                        className="hover:bg-white/[0.02] transition-all group"
+                                    >
+                                        <td className="px-6 py-5 text-center">
+                                            <div className="w-2 h-2 rounded-full mx-auto" style={{ backgroundColor: getZoneColor(stop.zone) }}></div>
+                                        </td>
+                                        <td className="px-6 py-5 font-mono text-[10px] text-[#C8F135]/60">{stop.stop_code}</td>
+                                        <td className="px-6 py-5">
+                                            <div className="text-[13px] font-bold text-white mb-0.5">{stop.stop_name || stop.name}</div>
+                                            <div className="text-[9px] font-mono text-[#333]">{(stop.latitude).toFixed(5)}, {(stop.longitude).toFixed(5)}</div>
+                                        </td>
+                                        <td className="px-6 py-5">
+                                            <span className="text-[10px] font-bold text-[#666] uppercase tracking-tighter">{stop.zone}</span>
+                                        </td>
+                                        <td className="px-6 py-5">
+                                            <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${stop.is_active ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-500'}`}>
+                                                {stop.is_active ? 'Active' : 'Offline'}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-5 text-right">
+                                            <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button onClick={() => handleEdit(stop)} className="p-2 hover:bg-white/5 rounded-lg transition-all">✏️</button>
+                                                <button onClick={() => handleDelete(stop.id)} className="p-2 hover:bg-red-500/10 rounded-lg text-red-500">🗑️</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
-        </div>
+        )}
 
-        <div className="absolute top-[12px] left-1/2 -translate-x-1/2 bg-[rgba(15,15,15,0.85)] border border-[#2A2A2A] rounded-[20px] p-[5px_14px] text-[#888] text-[11px] z-[1000] pointer-events-none font-semibold shadow-xl">
-          Click map to place stop • Click marker to edit
-        </div>
-
-        <MapContainer 
-          center={[20.9374, 77.7796]} 
-          zoom={13} 
-          zoomControl={false} 
-          style={{ width: '100%', height: '100%' }}
-        >
-          <MapInstance mapRef={mapRef} />
-          <TileLayer
-            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-          />
-          <MapClickHandler onMapClick={handleMapClick} />
-          
-          {stops.map(stop => (
-            <StopMarker 
-              key={stop.id}
-              stop={stop}
-              isSelected={selectedStop?.id === stop.id}
-              onClick={handleStopClick}
-            />
-          ))}
-
-          {pendingPin && (
-            <Marker position={[pendingPin.lat, pendingPin.lng]} icon={PendingIcon()} />
-          )}
-        </MapContainer>
+        {placementMode && (
+            <div className="absolute inset-0 z-[1001] bg-[#C8F135]/5 pointer-events-none ring-inset ring-8 ring-[#C8F135]/20 animate-pulse">
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black text-[#C8F135] px-8 py-4 rounded-3xl text-xs font-black uppercase tracking-[0.3em] shadow-2xl skew-x-[-12deg] border border-[#C8F13533]">
+                    PLACEMENT MODE ENABLED
+                </div>
+            </div>
+        )}
       </main>
     </div>
   );

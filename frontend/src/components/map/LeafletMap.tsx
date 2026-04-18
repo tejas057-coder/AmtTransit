@@ -4,10 +4,17 @@ import "leaflet/dist/leaflet.css";
 
 interface Stop {
   id: string;
-  name: string;
-  route: string;
+  stop_name: string;
+  stop_code: string;
+  zone: string;
   latitude: number;
   longitude: number;
+  is_active?: boolean;
+  // Legacy compatibility
+  name?: string;
+  route?: string;
+  lat?: number;
+  lng?: number;
 }
 
 interface LeafletMapProps {
@@ -20,14 +27,17 @@ interface LeafletMapProps {
   className?: string;
 }
 
-const routeColors: Record<string, string> = {
-  'Route 1 — City Center': '#C8F135',
-  'Route 2 — MIDC': '#7F77DD',
-  'Route 3 — Airport': '#D85A30',
-  'Route 4 — University': '#378ADD',
+const zoneColors: Record<string, string> = {
+  'Civil Lines': '#C8F135',
+  'Rajapeth': '#7F77DD',
+  'Badnera': '#D85A30',
+  'Camp': '#378ADD',
+  'MIDC': '#FF9F1C',
+  'University': '#2EC4B6',
+  'Other': '#888888'
 };
 
-const getRouteColor = (route: string) => routeColors[route] ?? '#888888';
+const getZoneColor = (zone: string) => zoneColors[zone] ?? '#888888';
 
 export const LeafletMap = forwardRef<L.Map | null, LeafletMapProps>(
   ({ stops = [], selectedStop, mapRef, center = [20.9374, 77.7796], zoom = 13, className }, ref) => {
@@ -95,26 +105,30 @@ export const LeafletMap = forwardRef<L.Map | null, LeafletMapProps>(
       markersMap.current.clear();
 
       stops.forEach((stop) => {
+        const stopName = stop.stop_name || stop.name || 'Unknown Stop';
+        const zone = stop.zone || stop.route || 'Other';
+        const zoneColor = getZoneColor(zone);
+        
         const icon = L.divIcon({
           className: '',
           html: `<div style="
-            background:#C8F135;
+            background:${zoneColor};
             width:12px;height:12px;
             border-radius:50%;
             border:2px solid #0F0F0F;
-            box-shadow:0 0 0 2px #C8F135;
+            box-shadow:0 0 0 2px ${zoneColor};
           "></div>
           <div style="
             color:#fff;font-size:10px;
             margin-top:4px;white-space:nowrap;
             font-family:'DM Sans',sans-serif;
             text-shadow:0 1px 2px rgba(0,0,0,0.8);
-          ">${stop.name}</div>`,
+          ">${stopName}</div>`,
           iconAnchor: [6, 6]
         });
 
-        const lat = stop.latitude || (stop as any).lat;
-        const lng = stop.longitude || (stop as any).lng;
+        const lat = stop.latitude ?? (stop as any).lat;
+        const lng = stop.longitude ?? (stop as any).lng;
 
         if (lat === undefined || lng === undefined) return;
 
@@ -122,11 +136,11 @@ export const LeafletMap = forwardRef<L.Map | null, LeafletMapProps>(
           .addTo(markersLayerRef.current!)
           .bindPopup(`
             <div style="font-family:'DM Sans',sans-serif;">
-              <div style="font-weight:700; font-size:14px; color:#fff; margin-bottom:4px;">${stop.name}</div>
+              <div style="font-weight:700; font-size:14px; color:#fff; margin-bottom:4px;">${stopName}</div>
               <div style="display:flex; align-items:center; gap:6px;">
-                <div style="font-size:11px; color:#888;">${stop.route}</div>
+                <div style="font-size:11px; color:#888;">${zone} • ${stop.stop_code}</div>
                 <div style="
-                  background:${getRouteColor(stop.route)};
+                  background:${zoneColor};
                   width:8px; height:8px; border-radius:50%;
                 "></div>
               </div>

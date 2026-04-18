@@ -6,17 +6,26 @@ import { connectDatabase } from "./config/database";
 import routesRoute from "./routes/routesRoute";
 import busesRoute from "./routes/busesRoute";
 import stopsRoute from "./routes/stopsRoute";
-import userRoute from "./routes/userRoute";
+import stopsManagementRouter from "./routes/stops_management";
+import userRoute from "./userRoute";
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const FRONTEND_URLS = [
-  process.env.FRONTEND_URL || "http://localhost:8082",
-  "http://localhost:8080",
-  "http://localhost:5184", // Admin panel
-];
+
+app.use(cors({
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"]
+}));
+app.use(express.json());
+
+// Global logging middleware
+app.use((req, res, next) => {
+    console.log(`📡 [${new Date().toISOString()}] ${req.method} ${req.url}`);
+    next();
+});
 
 // Initialize Database
 connectDatabase().catch((err) => {
@@ -54,7 +63,9 @@ app.get("/health", (req, res) => {
 // API Routes
 app.use("/api/routes", routesRoute);
 app.use("/api/buses", busesRoute);
-app.use("/api/stops", stopsRoute);
+app.use("/api/stops", stopsManagementRouter); // Use the new MERN-style router
+// Existing routes kept for compatibility
+app.use("/api/stops-legacy", stopsRoute);
 
 // Cleaned up mock endpoint since we are connecting to real database
 
