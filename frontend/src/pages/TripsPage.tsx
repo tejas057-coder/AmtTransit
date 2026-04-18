@@ -5,11 +5,7 @@ import { cn } from "@/lib/utils";
 
 const tabs = ["Saved Stops", "Recent Trips", "Favourite Routes"];
 
-const savedStops = [
-  { name: "Rajkamal Chowk", isHome: true, notify: true },
-  { name: "Amravati Railway Station", isHome: false, notify: true },
-  { name: "VNIT Campus", isHome: false, notify: false },
-];
+const savedStops: any[] = [];
 
 export default function TripsPage() {
   const [activeTab, setActiveTab] = useState("Saved Stops");
@@ -65,22 +61,29 @@ export default function TripsPage() {
       {/* Saved Stops */}
       {activeTab === "Saved Stops" && (
         <div className="space-y-3">
-          {savedStops.map((stop, i) => (
-            <div key={i} className="bg-card rounded-2xl border p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <MapPin className="w-5 h-5 text-primary" />
-                <div>
-                  <span className="text-sm font-semibold text-foreground">{stop.name}</span>
-                  {stop.isHome && <span className="ml-2 text-[10px] bg-primary/10 text-primary font-medium px-2 py-0.5 rounded-full">HOME</span>}
+          {savedStops.length > 0 ? (
+            savedStops.map((stop, i) => (
+              <div key={i} className="bg-card rounded-2xl border p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <MapPin className="w-5 h-5 text-primary" />
+                  <div>
+                    <span className="text-sm font-semibold text-foreground">{stop.name}</span>
+                    {stop.isHome && <span className="ml-2 text-[10px] bg-primary/10 text-primary font-medium px-2 py-0.5 rounded-full">HOME</span>}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button className={cn("text-xs px-2 py-1 rounded-lg", stop.notify ? "bg-success/10 text-success" : "bg-secondary text-muted-foreground")}>
+                    {stop.notify ? "Alerts On" : "Alerts Off"}
+                  </button>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button className={cn("text-xs px-2 py-1 rounded-lg", stop.notify ? "bg-success/10 text-success" : "bg-secondary text-muted-foreground")}>
-                  {stop.notify ? "Alerts On" : "Alerts Off"}
-                </button>
-              </div>
+            ))
+          ) : (
+            <div className="text-center py-8 text-muted-foreground bg-card rounded-2xl border">
+              <MapPin className="w-8 h-8 mx-auto mb-2 opacity-20" />
+              <p className="text-sm">No saved stops yet</p>
             </div>
-          ))}
+          )}
           <button className="w-full py-3 bg-secondary text-secondary-foreground rounded-2xl text-sm font-medium hover:bg-accent transition-colors flex items-center justify-center gap-2">
             <Plus className="w-4 h-4" />Add Stop
           </button>

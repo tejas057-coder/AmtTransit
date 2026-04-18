@@ -46,7 +46,7 @@ function App() {
 
   return (
     <div style={{ backgroundColor: adminColors.background.page, minHeight: '100vh' }}>
-      <Router>
+      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
           {/* Login Route */}
           <Route

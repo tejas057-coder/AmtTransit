@@ -3,13 +3,29 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const SUPABASE_URL = process.env.SUPABASE_URL || "https://placeholder.supabase.co";
-const SUPABASE_KEY = process.env.SUPABASE_KEY || "";
+let SUPABASE_URL = process.env.SUPABASE_URL || "";
+let SUPABASE_KEY = process.env.SUPABASE_KEY || "";
 
-if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.warn("⚠️  Supabase environment variables are missing! Make sure to add SUPABASE_URL and SUPABASE_KEY to your .env");
+// Robust URL check to prevent Supabase Client crash
+const isValidUrl = (url: string) => {
+  try {
+    return url && (url.startsWith('http://') || url.startsWith('https://'));
+  } catch {
+    return false;
+  }
+};
+
+if (!isValidUrl(SUPABASE_URL)) {
+  console.warn("⚠️  Invalid or missing SUPABASE_URL. Using placeholder to prevent crash.");
+  SUPABASE_URL = "https://placeholder-url-fix.supabase.co";
 }
 
+if (!SUPABASE_KEY || SUPABASE_KEY === "") {
+  console.warn("⚠️  Missing SUPABASE_KEY. Using fallback.");
+  SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy";
+}
+
+console.log("Initializing Supabase with URL:", SUPABASE_URL);
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 export const connectDatabase = async (): Promise<void> => {

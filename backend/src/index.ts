@@ -6,6 +6,7 @@ import { connectDatabase } from "./config/database";
 import routesRoute from "./routes/routesRoute";
 import busesRoute from "./routes/busesRoute";
 import stopsRoute from "./routes/stopsRoute";
+import userRoute from "./routes/userRoute";
 
 dotenv.config();
 
