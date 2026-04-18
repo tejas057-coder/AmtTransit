@@ -55,6 +55,7 @@ export const createStop = async (req: AuthRequest, res: Response) => {
       description: description || "",
       latitude,
       longitude,
+      route: req.body.route || "",
       createdBy: userId,
       role: userRole,
       createdAt: new Date().toISOString()
@@ -115,6 +116,7 @@ export const saveAdminStops = async (req: AuthRequest, res: Response) => {
       description: s.description || "",
       latitude: s.lat || s.latitude,
       longitude: s.lng || s.longitude,
+      route: s.route || "",
       createdBy: req.user?.id || 'admin_system',
       role: 'admin' as const,
       createdAt: new Date().toISOString(),

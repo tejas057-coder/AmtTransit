@@ -8,7 +8,6 @@ const TripStopCreator: React.FC = () => {
         <Route size={48} />
       </div>
       <h2 className="text-xl font-bold text-white/40">Trip Planning Coming Soon</h2>
-      <p className="text-sm">Use the "Stops" section to manage your transit network.</p>
     </div>
   );
 };

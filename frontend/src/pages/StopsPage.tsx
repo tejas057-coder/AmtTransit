@@ -1,136 +1,190 @@
-import { useEffect, useState } from 'react';
-import { Search, MapPin, Activity } from 'lucide-react';
+import { useEffect, useState, useRef, useMemo } from 'react';
+import { Bus } from 'lucide-react';
+import L from 'leaflet';
 import { supabase } from '@/lib/supabase';
+import { MainLayout } from '@/components/layout/MainLayout';
+import { SearchBar } from '@/components/SearchBar';
 import { LeafletMap } from '@/components/map/LeafletMap';
+import { useToast } from '@/hooks/use-toast';
+import { colors } from '@/lib/designTokens';
 
-// ─── Constants ───────────────────────────────────────────────────────────────
-const AMRAVATI_CENTER: [number, number] = [20.9374, 77.7796];
+interface Stop {
+  id: string;
+  name: string;
+  route: string;
+  lat: number;
+  lng: number;
+  latitude?: number;  // for compatibility
+  longitude?: number; // for compatibility
+  created_at: string;
+}
+
+const routeColors: Record<string, string> = {
+  'Route 1 — City Center': '#C8F135',
+  'Route 2 — MIDC': '#7F77DD',
+  'Route 3 — Airport': '#D85A30',
+  'Route 4 — University': '#378ADD',
+};
+
+const getRouteColor = (route: string) => routeColors[route] ?? '#888888';
 
 export default function StopsPage() {
-  const [stops, setStops] = useState<any[]>([]);
+  const [stops, setStops] = useState<Stop[]>([]);
+  const [search, setSearch] = useState('');
+  const [activeRoute, setActiveRoute] = useState('All');
+  const [selectedStop, setSelectedStop] = useState<Stop | null>(null);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [errorStatus, setErrorStatus] = useState<string | null>(null);
+  const { toast } = useToast();
+  
+  const mapRef = useRef<L.Map | null>(null);
 
-  // ─── Fetch Stops from Supabase ──────────────────────────────────────────────
   useEffect(() => {
     const fetchStops = async () => {
+      setLoading(true);
       try {
         const { data, error } = await supabase
           .from('stops')
           .select('*')
-          .order('created_at', { ascending: false });
+          .order('created_at', { ascending: true });
 
         if (error) {
-          if (error.code === 'PGRST205') setErrorStatus('TABLE_MISSING');
-          throw error;
+           toast({ 
+              title: "Failed to load stops", 
+              description: "Please try again.",
+              variant: "destructive" 
+           });
+        } else {
+          setStops(data || []);
         }
-        setStops(data || []);
-        setErrorStatus(null);
-      } catch (err) {
-        console.error('Error fetching stops:', err);
+      } catch (err: any) {
+        toast({ 
+           title: "Failed to load stops", 
+           description: "Please try again.",
+           variant: "destructive" 
+        });
       } finally {
         setLoading(false);
       }
     };
 
     fetchStops();
-
-    // Subscribe to realtime updates
-    const channel = supabase
-      .channel('public:stops')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'stops' }, payload => {
-        fetchStops();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, []);
 
-  // ─── Filter Logic ───────────────────────────────────────────────────────────
-  const filteredStops = stops.filter(stop => 
-    stop.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    stop.route.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const uniqueRoutes = useMemo(() => {
+    const rSet = new Set(stops.map(s => s.route));
+    const sorted = Array.from(rSet).filter(Boolean).sort();
+    return ['All', ...sorted];
+  }, [stops]);
+
+  const filteredStops = useMemo(() => {
+    return stops
+      .filter(s => activeRoute === 'All' || s.route === activeRoute)
+      .filter(s =>
+        s.name.toLowerCase().includes(search.toLowerCase()) ||
+        (s.route && s.route.toLowerCase().includes(search.toLowerCase()))
+      );
+  }, [stops, activeRoute, search]);
+
+  const handleStopClick = (stop: Stop) => {
+    setSelectedStop(stop);
+    // LeafletMap useEffect handles the flyTo when selectedStop changes
+  };
 
   return (
-    <div className="flex flex-col h-screen bg-[#0F0F0F] text-white">
-      {/* ── Header ────────────────────────────────────────────────────────── */}
-      <header className="p-4 border-b border-white/5 bg-[#0F0F0F] z-10">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="bg-[#C8F135]/10 p-2 rounded-xl">
-              <MapPin className="text-[#C8F135] w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold font-['DM_Sans']">Transit Stops</h1>
-              <p className="text-xs text-white/40 tracking-wide">Network Information</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 bg-[#1A1A1A] px-3 py-1.5 rounded-full border border-white/5">
-            <div className="w-1.5 h-1.5 rounded-full bg-[#C8F135] animate-pulse" />
-            <span className="text-[10px] font-bold text-[#C8F135] uppercase tracking-widest">Live Sync</span>
-          </div>
-        </div>
-
-        {/* Search Bar */}
-        <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-          <input
-            type="text"
-            placeholder="Search stops or routes..."
-            className="w-full bg-[#1A1A1A] border border-white/5 rounded-2xl py-3.5 pl-11 pr-4 text-sm font-medium focus:outline-none focus:border-[#C8F135]/50 transition-colors"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-      </header>
-
-      {/* ── Main Content ─────────────────────────────────────────────────── */}
-      <main className="flex-1 relative">
-        <div className="absolute inset-0">
-          <LeafletMap 
-            center={AMRAVATI_CENTER} 
-            zoom={14} 
-            stops={filteredStops} 
-            showOnly="stops" 
+    <MainLayout>
+      <div className="flex flex-col lg:flex-row h-screen lg:h-[calc(100vh-64px)] w-full bg-[#0F0F0F] text-white overflow-hidden">
+        
+        {/* TOP HALF (MOBILE) / LEFT PANEL (DESKTOP) - MAP */}
+        <div className="w-full lg:w-[60%] h-[55vh] lg:h-full relative overflow-hidden">
+          <LeafletMap
+            stops={filteredStops}
+            selectedStop={selectedStop}
+            mapRef={mapRef}
+            center={[20.9374, 77.7796]}
+            zoom={13}
+            className="w-full h-full"
           />
         </div>
 
-        {/* Stats Overlay */}
-        <div className="absolute bottom-6 left-6 right-6 flex gap-4 pointer-events-none">
-          <div className="bg-[#1A1A1A]/90 backdrop-blur-md border border-white/5 px-5 py-4 rounded-2xl flex-1 flex items-center gap-4">
-            <div className="bg-[#C8F135] w-1 h-8 rounded-full" />
-            <div>
-              <div className="text-[10px] text-white/40 uppercase font-black tracking-widest leading-none mb-1">Total Stops</div>
-              <div className="text-2xl font-black tabular-nums">{stops.length}</div>
-            </div>
+        {/* BOTTOM HALF (MOBILE) / RIGHT PANEL (DESKTOP) - CONTROLS & LIST */}
+        <div className="flex-1 flex flex-col h-[45vh] lg:h-full bg-[#0F0F0F] overflow-hidden border-t lg:border-t-0 lg:border-l border-[#2A2A2A]">
+          
+          {/* Section 2: Search Bar */}
+          <div className="p-4">
+            <SearchBar 
+              placeholder="Search stops or routes..." 
+              onSearch={(query) => setSearch(query)}
+              onClear={() => setSearch('')}
+            />
           </div>
-          <div className="bg-[#1A1A1A]/90 backdrop-blur-md border border-white/5 px-5 py-4 rounded-2xl flex-1 flex items-center gap-4 text-right justify-end">
-            <div>
-              <div className="text-[10px] text-white/40 uppercase font-black tracking-widest leading-none mb-1">Status</div>
-              <div className={`text-sm font-bold ${errorStatus === 'TABLE_MISSING' ? 'text-red-500' : 'text-[#C8F135]'}`}>
-                {errorStatus === 'TABLE_MISSING' ? 'SETUP REQUIRED' : 'CONNECTED'}
+
+          {/* Section 3: Route Filter Pills */}
+          <div className="px-4 pb-4 overflow-x-auto whitespace-nowrap scrollbar-none flex gap-2">
+            <style>{`
+              .scrollbar-none::-webkit-scrollbar { display: none; }
+              .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+            `}</style>
+            {uniqueRoutes.map((route) => {
+               const isActive = activeRoute === route;
+               return (
+                 <button
+                   key={route}
+                   onClick={() => setActiveRoute(route)}
+                   className={`px-[14px] py-[6px] rounded-full text-[12px] transition-all border ${
+                     isActive
+                       ? "bg-[#C8F135] text-[#0F0F0F] font-semibold border-transparent"
+                       : "bg-[#1A1A1A] text-white border-[#2A2A2A]"
+                   }`}
+                 >
+                   {route}
+                 </button>
+               );
+            })}
+          </div>
+
+          {/* Section 4: Stop Cards List */}
+          <div className="flex-1 overflow-y-auto px-4 pb-20 lg:pb-6 space-y-3">
+            {loading ? (
+              // Loading State: 4 skeletons (56px)
+              [1, 2, 3, 4].map((i) => (
+                <div 
+                  key={i} 
+                  className="h-[56px] bg-[#1A1A1A] rounded-[12px] border border-[#2A2A2A] animate-pulse"
+                />
+              ))
+            ) : filteredStops.length > 0 ? (
+              filteredStops.map((stop) => (
+                <div
+                  key={stop.id}
+                  onClick={() => handleStopClick(stop)}
+                  id={`stop-card-${stop.id}`}
+                  className={`flex items-center justify-between bg-[#1A1A1A] h-[56px] px-4 rounded-[12px] border transition-all cursor-pointer hover:border-white/10 active:scale-[0.98] ${
+                    selectedStop?.id === stop.id ? "ring-1 ring-[#C8F135]/50 border-[#C8F135]/30" : "border-[#2A2A2A]"
+                  }`}
+                  style={{ borderLeft: `4px solid ${getRouteColor(stop.route)}` }}
+                >
+                  <div className="flex flex-col truncate pr-4">
+                    <span className="text-[13px] font-medium text-white truncate">{stop.name}</span>
+                    <span className="text-[11px] text-[#888] truncate">{stop.route}</span>
+                  </div>
+                  <div className="flex-shrink-0">
+                      <Bus className="w-4 h-4 text-[#888]" />
+                  </div>
+                </div>
+              ))
+            ) : (
+              // Empty State
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="mb-4">
+                  <Bus className="w-10 h-10 text-[#888] opacity-50" />
+                </div>
+                <h3 className="text-[13px] text-[#888] font-medium">No stops found</h3>
+                <p className="text-[12px] text-[#888]/60 mt-1">Try a different search or route filter</p>
               </div>
-            </div>
-            <div className={`w-1 h-8 rounded-full ${errorStatus === 'TABLE_MISSING' ? 'bg-red-500' : 'bg-[#C8F135]'}`} />
+            )}
           </div>
         </div>
-      </main>
-
-      {/* Loading State */}
-      {loading && (
-        <div className="absolute inset-0 bg-[#0F0F0F] z-50 flex flex-col items-center justify-center gap-4">
-          <div className="relative">
-            <div className="w-16 h-16 border-2 border-white/5 rounded-full" />
-            <div className="absolute inset-0 border-t-2 border-[#C8F135] rounded-full animate-spin" />
-            <Activity className="absolute inset-0 m-auto w-6 h-6 text-[#C8F135] opacity-50" />
-          </div>
-          <p className="text-sm font-bold text-white/40 tracking-widest uppercase">Fetching Transit Data</p>
-        </div>
-      )}
-    </div>
+      </div>
+    </MainLayout>
   );
 }

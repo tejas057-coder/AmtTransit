@@ -20,5 +20,8 @@
   "devDependencies": {
     "concurrently": "^8.2.2",
     "nodemon": "^3.1.14"
+  },
+  "dependencies": {
+    "caniuse-lite": "^1.0.30001788"
   }
 }

@@ -15,6 +15,7 @@ export interface Stop {
   description?: string;
   latitude: number;
   longitude: number;
+  route?: string;
   createdBy: string;
   role: "admin" | "user";
   createdAt: string;
