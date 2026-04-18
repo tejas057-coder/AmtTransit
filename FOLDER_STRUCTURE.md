@@ -31,7 +31,7 @@ frontend/
 │   │   │   └── MainLayout.tsx         # Persistent layout with Outlet
 │   │   │
 │   │   ├── map/
-│   │   │   ├── LeafletMap.tsx         # Base map component
+│   │   │   ├── .tsx         # Base map component
 │   │   │   ├── BusRouteMap.tsx        # Interactive route map with geocoding
 │   │   │   └── ...                    # Other map components
 │   │   │

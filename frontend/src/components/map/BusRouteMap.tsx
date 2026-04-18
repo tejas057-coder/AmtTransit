@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { supabase } from "@/lib/supabase";
 
 interface StopLocation {
   name: string;
@@ -130,33 +131,43 @@ export function BusRouteMap({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Default stops for Navsari → Badnera route
-  const defaultStops = [
-    "Navsari Amravati,  Navsari Chowk",
-    "Gupta Cement",
-    "Kathora Naka",
-    "VMV Road",
-    "GCOEA College",
-    "Shegaon Naka",
-    "Rathi Nagar",
-    "Gadge Nagar",
-    "Panchavati",
-    "Shivaji Science College",
-    "ITI College",
-    "Irwin Chowk",
-    "Jaystambh Chowk",
-    "Rajkamal",
-    "Rajapeth",
-    "Samarth High School",
-    "Navathe",
-    "Gopal Nagar",
-    "Sai Nagar",
-    "Sipna College",
-    "Badnera Stop",
-    "Badnera Railway Station",
-  ];
+  useEffect(() => {
+    const fetchAdminStops = async () => {
+      try {
+        const token = localStorage.getItem("at_token");
+        const headers: any = {};
+        if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const stopsToUse = stops.length > 0 ? stops : defaultStops;
+        const res = await fetch("http://localhost:5000/api/stops", { headers });
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          // Map database fields (latitude/longitude) to Leaflet format (lat/lng)
+          const formattedStops = json.data.map((s: any) => ({
+            name: s.name,
+            lat: s.latitude || s.lat,
+            lng: s.longitude || s.lng
+          }));
+          setRouteStops(formattedStops);
+          setLoading(false);
+        } else {
+          setLoading(false);
+        }
+      } catch (e) {
+        console.error("Failed to fetch admin stops for BusRouteMap");
+        setError("Failed to load route data");
+        setLoading(false);
+      }
+    };
+
+    fetchAdminStops();
+
+    const channel = supabase
+      .channel('busroute-stops')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'stops' }, () => fetchAdminStops())
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   const defaultKeyStops = [
     "Panchavati",
@@ -168,39 +179,6 @@ export function BusRouteMap({
   ];
 
   const keyStopsToUse = keyStops.length > 0 ? keyStops : defaultKeyStops;
-
-  // Fetch all stop coordinates
-  useEffect(() => {
-    const fetchAllCoordinates = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        // Add delay between requests to avoid rate limiting
-        const locations: StopLocation[] = [];
-
-        for (const stop of stopsToUse) {
-          const location = await fetchCoordinates(stop);
-          if (location) {
-            locations.push(location);
-          }
-          // Small delay to avoid overloading Nominatim API
-          await new Promise((resolve) => setTimeout(resolve, 200));
-        }
-
-        if (locations.length === 0) {
-          setError("Could not fetch coordinates for any stops");
-        } else {
-          setRouteStops(locations);
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to fetch coordinates");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAllCoordinates();
-  }, [stopsToUse]);
 
   // Initialize and update map
   useEffect(() => {

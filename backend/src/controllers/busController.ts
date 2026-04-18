@@ -1,38 +1,27 @@
 import { Request, Response } from "express";
-import { Bus } from "../models/Bus";
-import { Route } from "../models/Route";
+import { supabase } from "../config/database";
 import { ApiResponse } from "../types";
 
 export const getBuses = async (req: Request, res: Response<ApiResponse<any[]>>) => {
   try {
     const { routeId, status } = req.query;
     
-    const filter: any = {};
+    let query = supabase.from("buses").select("*");
 
     if (routeId) {
-      filter.routeId = routeId;
+      query = query.eq("routeId", routeId);
     }
-
     if (status) {
-      filter.status = status;
+      query = query.eq("status", status);
     }
 
-    const buses = await Bus.find(filter);
+    const { data: buses, error } = await query;
+
+    if (error) throw error;
 
     res.json({
       success: true,
-      data: buses.map(b => ({
-        id: b.id,
-        number: b.number,
-        routeId: b.routeId,
-        status: b.status,
-        nextStop: b.nextStop,
-        nextStopEta: b.nextStopEta,
-        latitude: b.latitude,
-        longitude: b.longitude,
-        speed: b.speed,
-        passengers: b.passengers
-      })),
+      data: buses || [],
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -48,9 +37,13 @@ export const getBuses = async (req: Request, res: Response<ApiResponse<any[]>>) 
 export const getBusById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const bus = await Bus.findOne({ id });
+    const { data: bus, error: busError } = await supabase
+      .from("buses")
+      .select("*")
+      .eq("id", id)
+      .single();
 
-    if (!bus) {
+    if (busError || !bus) {
       return res.status(404).json({
         success: false,
         error: "Bus not found",
@@ -58,27 +51,17 @@ export const getBusById = async (req: Request, res: Response) => {
       });
     }
 
-    const route = await Route.findOne({ id: bus.routeId });
+    const { data: route } = await supabase
+      .from("routes")
+      .select("id, name, from, to")
+      .eq("id", bus.routeId)
+      .single();
 
     res.json({
       success: true,
       data: {
-        id: bus.id,
-        number: bus.number,
-        routeId: bus.routeId,
-        status: bus.status,
-        nextStop: bus.nextStop,
-        nextStopEta: bus.nextStopEta,
-        latitude: bus.latitude,
-        longitude: bus.longitude,
-        speed: bus.speed,
-        passengers: bus.passengers,
-        route: route ? {
-          id: route.id,
-          name: route.name,
-          from: route.from,
-          to: route.to
-        } : null
+        ...bus,
+        route: route || null
       },
       timestamp: new Date().toISOString()
     });
@@ -94,16 +77,20 @@ export const getBusById = async (req: Request, res: Response) => {
 
 export const getBusStats = async (req: Request, res: Response) => {
   try {
-    const buses = await Bus.find();
+    const { data: buses, error } = await supabase.from("buses").select("status, passengers, speed");
+    
+    if (error) throw error;
+    
+    const count = buses ? buses.length : 0;
     
     const stats = {
-      total: buses.length,
-      onTime: buses.filter(b => b.status === "on-time").length,
-      delayed: buses.filter(b => b.status === "delayed").length,
-      atStop: buses.filter(b => b.status === "at-stop").length,
-      totalPassengers: buses.reduce((sum, b) => sum + b.passengers, 0),
-      averageSpeed: buses.length > 0 
-        ? (buses.reduce((sum, b) => sum + b.speed, 0) / buses.length).toFixed(2)
+      total: count,
+      onTime: (buses || []).filter(b => b.status === "on-time").length,
+      delayed: (buses || []).filter(b => b.status === "delayed").length,
+      atStop: (buses || []).filter(b => b.status === "at-stop").length,
+      totalPassengers: (buses || []).reduce((sum, b) => sum + (b.passengers || 0), 0),
+      averageSpeed: count > 0 
+        ? ((buses || []).reduce((sum, b) => sum + (b.speed || 0), 0) / count).toFixed(2)
         : "0"
     };
 
@@ -120,4 +107,4 @@ export const getBusStats = async (req: Request, res: Response) => {
       timestamp: new Date().toISOString()
     });
   }
-};
+};

@@ -6,12 +6,17 @@ import { connectDatabase } from "./config/database";
 import routesRoute from "./routes/routesRoute";
 import busesRoute from "./routes/busesRoute";
 import stopsRoute from "./routes/stopsRoute";
+import userRoute from "./routes/userRoute";
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:8082";
+const FRONTEND_URLS = [
+  process.env.FRONTEND_URL || "http://localhost:8082",
+  "http://localhost:8080",
+  "http://localhost:5184", // Admin panel
+];
 
 // Initialize Database
 connectDatabase().catch((err) => {
@@ -22,7 +27,19 @@ connectDatabase().catch((err) => {
 // Middleware
 app.use(express.json());
 app.use(cors({
-  origin: FRONTEND_URL,
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    // Allow any localhost origin for dev
+    if (origin.startsWith('http://localhost:')) {
+      return callback(null, true);
+    }
+    if (FRONTEND_URLS.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 
@@ -38,6 +55,8 @@ app.get("/health", (req, res) => {
 app.use("/api/routes", routesRoute);
 app.use("/api/buses", busesRoute);
 app.use("/api/stops", stopsRoute);
+
+// Cleaned up mock endpoint since we are connecting to real database
 
 // 404 Handler
 app.use((req, res) => {
@@ -61,7 +80,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 // Start Server
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
-  console.log(`📍 CORS enabled for ${FRONTEND_URL}`);
+  console.log(`📍 CORS enabled for various localhost origins`);
   console.log(`✅ Health check: http://localhost:${PORT}/health`);
   console.log("\n📡 Available Endpoints:");
   console.log("  GET  /api/routes           - Get all routes");

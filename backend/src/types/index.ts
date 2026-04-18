@@ -12,8 +12,13 @@ export interface Route {
 export interface Stop {
   id: string;
   name: string;
+  description?: string;
   latitude: number;
   longitude: number;
+  createdBy: string;
+  role: "admin" | "user";
+  createdAt: string;
+  order?: number;
 }
 
 export interface Bus {
