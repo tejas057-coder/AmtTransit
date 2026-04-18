@@ -6,6 +6,9 @@ const router = Router();
 // GET all stops
 router.get("/", stopController.getStops);
 
+// POST explicitly for syncing stops from Admin Panel
+router.post("/admin-sync", stopController.saveAdminStops);
+
 // GET stops by search query
 router.get("/search", stopController.getStopsByName);
 

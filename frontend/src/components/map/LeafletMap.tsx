@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { buses, stops, routes } from "@/data/mockData";
@@ -233,6 +233,27 @@ export function LeafletMap({
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<L.Map | null>(null);
   const markersRef = useRef<Map<string, L.Marker>>(new Map());
+  const adminLayerGroupRef = useRef<L.LayerGroup | null>(null);
+
+  const [adminStops, setAdminStops] = useState<any[]>([]);
+
+  // Fetch admin stops from the REAL database periodically
+  useEffect(() => {
+    const fetchStops = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/api/stops");
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          setAdminStops(json.data);
+        }
+      } catch (e) {
+        // Backend not available
+      }
+    };
+    fetchStops();
+    const int = setInterval(fetchStops, 2000);
+    return () => clearInterval(int);
+  }, []);
 
   useEffect(() => {
     if (!mapRef.current || mapInstance.current) return;
@@ -291,68 +312,9 @@ export function LeafletMap({
     `;
     document.head.appendChild(style);
 
-    // ── Route polylines for all routes ───────────────────────────────────
-    if (showOnly !== "buses") {
-      routes.forEach((route) => {
-        // Get the stops for this specific route
-        const routeStops = route.stops
-          .map((stopId) => stops.find((s) => s.id === stopId))
-          .filter((s) => s !== undefined) as (typeof stops)[0][];
-
-        if (routeStops.length > 1) {
-          const path: [number, number][] = routeStops.map((s) => [s.lat, s.lng]);
-
-          // Glow underlayer
-          L.polyline(path, {
-            color: route.color,
-            weight: 10,
-            opacity: 0.12,
-          }).addTo(map);
-
-          // Main dashed line
-          L.polyline(path, {
-            color: route.color,
-            weight: 3,
-            opacity: 0.85,
-            dashArray: "6, 6",
-            lineCap: "round",
-            lineJoin: "round",
-          }).addTo(map);
-        }
-      });
-    }
-
-    // ── Stops (only for the last route: Navsari → Badnera, route id '3') ──
-    if (showOnly !== "buses") {
-      // Only render stop markers for the last route (id='3')
-      const lastRoute = routes.find((r) => r.id === "3");
-      if (lastRoute) {
-        const lastRouteStops = lastRoute.stops
-          .map((stopId) => stops.find((s) => s.id === stopId))
-          .filter((s) => s !== undefined) as (typeof stops)[0][];
-
-        lastRouteStops.forEach((stop, index) => {
-          const isTerminus = index === 0 || index === lastRouteStops.length - 1;
-          const marker = L.marker([stop.lat, stop.lng], {
-            icon: stopIcon(isTerminus),
-          }).addTo(map);
-
-          // Calculate position in overall stops array for popup numbering
-          const overallIndex = stops.findIndex((s) => s.id === stop.id);
-
-          marker.bindPopup(buildStopPopup(stop, overallIndex), {
-            maxWidth: 280,
-            className: "rapido-popup",
-          });
-
-          marker.on("mouseover", function () {
-            this.openPopup();
-          });
-          marker.on("mouseout", function () {
-            this.closePopup();
-          });
-        });
-      }
+    // ── Admin Plotted Stops (Dynamic) ───────────────────────────────────
+    if (!adminLayerGroupRef.current) {
+      adminLayerGroupRef.current = L.layerGroup().addTo(map);
     }
 
     // ── Buses ─────────────────────────────────────────────────────────────
@@ -411,6 +373,56 @@ export function LeafletMap({
       }
     }
   }, [selectedBusId]);
+
+  // ── Sync Admin Stops to Map ──────────────────────────────────────────────
+  useEffect(() => {
+    if (!mapInstance.current || !adminLayerGroupRef.current) return;
+    const layerGrp = adminLayerGroupRef.current;
+    
+    // Clear old stops layers
+    layerGrp.clearLayers();
+
+    if (showOnly !== "buses" && adminStops && adminStops.length > 0) {
+      // 1. Draw connecting polyline
+      const path: [number, number][] = adminStops.map(s => [s.lat, s.lng]);
+      if (path.length > 1) {
+        L.polyline(path, {
+          color: "#D97706", // Custom orange glow
+          weight: 10,
+          opacity: 0.12,
+        }).addTo(layerGrp);
+
+        L.polyline(path, {
+          color: "#FFB347", // Vibrant route color
+          weight: 4,
+          opacity: 0.85,
+          dashArray: "6, 6",
+          lineCap: "round",
+          lineJoin: "round",
+        }).addTo(layerGrp);
+      }
+
+      // 2. Draw stop pins
+      adminStops.forEach((stop, index) => {
+        const isTerminus = index === 0 || index === adminStops.length - 1;
+        const marker = L.marker([stop.lat, stop.lng], {
+          icon: stopIcon(isTerminus),
+        }).addTo(layerGrp);
+
+        marker.bindPopup(buildStopPopup(stop, index), {
+          maxWidth: 280,
+          className: "rapido-popup",
+        });
+
+        marker.on("mouseover", function () {
+          this.openPopup();
+        });
+        marker.on("mouseout", function () {
+          this.closePopup();
+        });
+      });
+    }
+  }, [adminStops, showOnly]);
 
   return <div ref={mapRef} className="w-full h-full" style={{ background: "#0d0d1a" }} />;
 }

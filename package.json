@@ -4,20 +4,21 @@
   "description": "Amravati Transit Bus Tracking System - Full Stack",
   "private": true,
   "scripts": {
-    "dev": "concurrently --continue-on-error \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\" \"npm run dev --prefix admin\"",
+    "dev": "concurrently -n BACKEND,FRONTEND,ADMIN -c green,blue,magenta \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev:admin\"",
     "dev:backend": "npm run dev --prefix backend",
     "dev:frontend": "npm run dev --prefix frontend",
     "dev:admin": "npm run dev --prefix admin",
-    "dev:stops": "npm --prefix admin run dev -- --port 5187",
-    "build": "npm run build --prefix backend && npm run build --prefix frontend && npm run build --prefix admin",
+    "dev:stops": "npm run dev --prefix admin -- --port 5187",
+    "build": "npm run build:backend && npm run build:frontend && npm run build:admin",
     "build:backend": "npm run build --prefix backend",
     "build:frontend": "npm run build --prefix frontend",
     "build:admin": "npm run build --prefix admin",
-    "lint": "concurrently \"npm run lint --prefix backend\" \"npm run lint --prefix frontend\"",
+    "lint": "concurrently \"npm run lint:backend\" \"npm run lint:frontend\"",
     "lint:backend": "npm run lint --prefix backend",
     "lint:frontend": "npm run lint --prefix frontend"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "nodemon": "^3.1.14"
   }
 }

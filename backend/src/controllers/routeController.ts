@@ -1,21 +1,16 @@
 import { Request, Response } from "express";
-import { Route } from "../models/Route";
-import { Bus } from "../models/Bus";
+import { supabase } from "../config/database";
 import { ApiResponse } from "../types";
 
 export const getRoutes = async (req: Request, res: Response<ApiResponse<any[]>>) => {
   try {
-    const routes = await Route.find();
+    const { data: routes, error } = await supabase.from("routes").select("*");
+    
+    if (error) throw error;
+
     res.json({
       success: true,
-      data: routes.map(r => ({
-        id: r.id,
-        name: r.name,
-        from: r.from,
-        to: r.to,
-        distance: r.distance,
-        frequency: r.frequency
-      })),
+      data: routes || [],
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -31,9 +26,13 @@ export const getRoutes = async (req: Request, res: Response<ApiResponse<any[]>>)
 export const getRouteById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const route = await Route.findOne({ id });
+    const { data: route, error } = await supabase
+      .from("routes")
+      .select("*")
+      .eq("id", id)
+      .single();
 
-    if (!route) {
+    if (error || !route) {
       return res.status(404).json({
         success: false,
         error: "Route not found",
@@ -43,14 +42,7 @@ export const getRouteById = async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      data: {
-        id: route.id,
-        name: route.name,
-        from: route.from,
-        to: route.to,
-        distance: route.distance,
-        frequency: route.frequency
-      },
+      data: route,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -68,8 +60,13 @@ export const getRouteBuses = async (req: Request, res: Response) => {
     const { id } = req.params;
     
     // Verify route exists
-    const route = await Route.findOne({ id });
-    if (!route) {
+    const { data: route, error: routeError } = await supabase
+      .from("routes")
+      .select("id")
+      .eq("id", id)
+      .single();
+
+    if (routeError || !route) {
       return res.status(404).json({
         success: false,
         error: "Route not found",
@@ -78,22 +75,16 @@ export const getRouteBuses = async (req: Request, res: Response) => {
     }
 
     // Get buses for this route
-    const buses = await Bus.find({ routeId: id });
+    const { data: buses, error: busError } = await supabase
+      .from("buses")
+      .select("*")
+      .eq("routeId", id);
+
+    if (busError) throw busError;
 
     res.json({
       success: true,
-      data: buses.map(b => ({
-        id: b.id,
-        number: b.number,
-        routeId: b.routeId,
-        status: b.status,
-        nextStop: b.nextStop,
-        nextStopEta: b.nextStopEta,
-        latitude: b.latitude,
-        longitude: b.longitude,
-        speed: b.speed,
-        passengers: b.passengers
-      })),
+      data: buses || [],
       timestamp: new Date().toISOString()
     });
   } catch (error) {

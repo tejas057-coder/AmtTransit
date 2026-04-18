@@ -56,7 +56,7 @@ const SAMPLE_TRIPS: Trip[] = [
   { id: 'TRP-004', route: 'Route 4', bus: 'Bus #12', departure: '07:30', arrival: '08:10', driver: 'Priya Deshmukh', repeat: 'Weekdays only', customDays: [] },
   { id: 'TRP-005', route: 'Route 4', bus: 'Bus #15', departure: '09:00', arrival: '09:40', driver: 'Nitin Rao', repeat: 'Weekdays only', customDays: [] },
   { id: 'TRP-006', route: 'Route 7', bus: 'Bus #21', departure: '10:30', arrival: '11:04', driver: 'Asha Joshi', repeat: 'Daily', customDays: [] },
-  { id: 'TRP-007', route: 'Route 4', bus: 'Bus #28', departure: '12:00', arrival: '12:40', driver: 'Ravi Sharma', repeat: 'Saturday', customDays: ['Sat'] as unknown as string[] },
+  { id: 'TRP-007', route: 'Route 4', bus: 'Bus #28', departure: '12:00', arrival: '12:40', driver: 'Ravi Sharma', repeat: 'Custom days', customDays: ['Sat'] },
   { id: 'TRP-008', route: 'Route 4', bus: 'Bus #30', departure: '16:30', arrival: '17:10', driver: 'Amit Kulkarni', repeat: 'Weekdays only', customDays: [] },
 ];
 

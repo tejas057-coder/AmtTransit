@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
-import { MapPin, Trash2, Edit2, GripVertical, X } from 'lucide-react';
+import 'leaflet/dist/leaflet.css';
+import { MapPin, Trash2, Edit2, GripVertical, X, Plus } from 'lucide-react';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -15,6 +16,7 @@ type TripStop = {
 
 type MapClickListenerProps = {
   onMapClick: (lat: number, lng: number) => void;
+  isActive: boolean;
 };
 
 type MapBinderProps = {
@@ -28,10 +30,22 @@ const DEFAULT_ZOOM = 14;
 
 // ─── Map event helpers ────────────────────────────────────────────────────────
 
-const MapClickListener: React.FC<MapClickListenerProps> = ({ onMapClick }) => {
+const MapClickListener: React.FC<MapClickListenerProps> = ({ onMapClick, isActive }) => {
+  const map = useMap();
+  
+  useEffect(() => {
+    if (isActive) {
+      map.getContainer().style.cursor = 'crosshair';
+    } else {
+      map.getContainer().style.cursor = '';
+    }
+  }, [isActive, map]);
+
   useMapEvents({
     click(event) {
-      onMapClick(event.latlng.lat, event.latlng.lng);
+      if (isActive) {
+        onMapClick(event.latlng.lat, event.latlng.lng);
+      }
     },
   });
   return null;
@@ -39,7 +53,7 @@ const MapClickListener: React.FC<MapClickListenerProps> = ({ onMapClick }) => {
 
 const MapBinder: React.FC<MapBinderProps> = ({ onBind }) => {
   const map = useMap();
-  
+
   useEffect(() => {
     onBind(map);
   }, [map, onBind]);
@@ -53,6 +67,7 @@ const TripStopCreator: React.FC = () => {
   const [selectedStopId, setSelectedStopId] = useState<string | null>(null);
   const [editingStopId, setEditingStopId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
+  const [isCreatingMode, setIsCreatingMode] = useState(false);
   const mapRef = useRef<L.Map | null>(null);
 
   const bindMap = useCallback((map: L.Map) => {
@@ -133,7 +148,7 @@ const TripStopCreator: React.FC = () => {
       if (index === -1) return prev;
       if (direction === 'up' && index === 0) return prev;
       if (direction === 'down' && index === prev.length - 1) return prev;
-      
+
       const newStops = [...prev];
       const swapIndex = direction === 'up' ? index - 1 : index + 1;
       [newStops[index], newStops[swapIndex]] = [newStops[swapIndex], newStops[index]];
@@ -148,10 +163,33 @@ const TripStopCreator: React.FC = () => {
   };
 
   const clearAllStops = () => {
+    if (!window.confirm('Are you sure you want to clear all stops?')) return;
     setStops([]);
     setSelectedStopId(null);
     setEditingStopId(null);
     setEditName('');
+  };
+
+  const handleSaveTrip = async () => {
+    if (stops.length === 0) {
+      alert("Please add at least one stop before saving.");
+      return;
+    }
+    try {
+      const response = await fetch("http://localhost:5000/api/stops/admin-sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(stops)
+      });
+      if (response.ok) {
+        alert("Trip stops saved successfully and synced to user map!");
+      } else {
+        alert("Failed to sync stops to user map.");
+      }
+    } catch (e) {
+      alert("Error saving stops. Is the backend running?");
+      console.error(e);
+    }
   };
 
   // ─── Render ───────────────────────────────────────────────────────
@@ -187,10 +225,10 @@ const TripStopCreator: React.FC = () => {
 
       {/* ── Map Area (Main Focus) ──────────────────────────────────── */}
       <main style={{ flex: 1, position: 'relative', height: '100%' }}>
-        <MapContainer 
-          center={AMRAVATI_CENTER} 
-          zoom={DEFAULT_ZOOM} 
-          zoomControl={false} 
+        <MapContainer
+          center={AMRAVATI_CENTER}
+          zoom={DEFAULT_ZOOM}
+          zoomControl={false}
           style={{ width: '100%', height: '100%' }}
         >
           <MapBinder onBind={bindMap} />
@@ -198,47 +236,63 @@ const TripStopCreator: React.FC = () => {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
           />
-          <MapClickListener onMapClick={handleMapClick} />
+          <MapClickListener onMapClick={handleMapClick} isActive={isCreatingMode} />
 
-          {stops.map((stop, index) => (
-            <Marker
-              key={stop.id}
-              position={[stop.lat, stop.lng]}
-              icon={selectedStopId === stop.id ? selectedStopIcon : stopIcon}
-              eventHandlers={{ click: () => setSelectedStopId(stop.id) }}
-            >
-              <Popup>
-                <div style={{ backgroundColor: '#1A1A1A', color: '#E5E5E5', padding: '4px', minWidth: '180px' }}>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#FFFFFF', marginBottom: '4px' }}>
-                    {stop.name}
+          {stops.map((stop, index) => {
+            const markerIcon = selectedStopId === stop.id
+              ? L.divIcon({
+                className: 'trip-stop-marker-selected',
+                html: `<div class="trip-stop-dot-selected"><span class="trip-stop-number-selected">${stop.order}</span></div>`,
+                iconSize: [32, 32],
+                iconAnchor: [16, 16],
+              })
+              : L.divIcon({
+                className: 'trip-stop-marker',
+                html: `<div class="trip-stop-dot"><span class="trip-stop-number">${stop.order}</span></div>`,
+                iconSize: [28, 28],
+                iconAnchor: [14, 14],
+              });
+
+            return (
+              <Marker
+                key={stop.id}
+                position={[stop.lat, stop.lng]}
+                icon={markerIcon}
+                eventHandlers={{ click: () => setSelectedStopId(stop.id) }}
+              >
+                <Popup>
+                  <div style={{ backgroundColor: '#1A1A1A', color: '#E5E5E5', padding: '4px', minWidth: '180px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: '#FFFFFF', marginBottom: '4px' }}>
+                      {stop.name}
+                    </div>
+                    <div style={{ fontSize: '10px', color: '#888', marginBottom: '6px' }}>
+                      #{stop.order} • {stop.lat.toFixed(5)}, {stop.lng.toFixed(5)}
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button
+                        onClick={() => startEditing(stop)}
+                        style={{
+                          flex: 1, height: '26px', borderRadius: '6px', border: '1px solid #2A2A2A',
+                          backgroundColor: '#111111', color: '#E5E5E5', fontSize: '10px', cursor: 'pointer',
+                        }}
+                      >
+                        Rename
+                      </button>
+                      <button
+                        onClick={() => removeStop(stop.id)}
+                        style={{
+                          flex: 1, height: '26px', borderRadius: '6px', border: '1px solid rgba(255,68,68,0.3)',
+                          backgroundColor: 'transparent', color: '#FF4444', fontSize: '10px', cursor: 'pointer',
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
-                  <div style={{ fontSize: '10px', color: '#888', marginBottom: '6px' }}>
-                    #{stop.order} • {stop.lat.toFixed(5)}, {stop.lng.toFixed(5)}
-                  </div>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <button 
-                      onClick={() => startEditing(stop)} 
-                      style={{
-                        flex: 1, height: '26px', borderRadius: '6px', border: '1px solid #2A2A2A',
-                        backgroundColor: '#111111', color: '#E5E5E5', fontSize: '10px', cursor: 'pointer',
-                      }}
-                    >
-                      Rename
-                    </button>
-                    <button 
-                      onClick={() => removeStop(stop.id)} 
-                      style={{
-                        flex: 1, height: '26px', borderRadius: '6px', border: '1px solid rgba(255,68,68,0.3)',
-                        backgroundColor: 'transparent', color: '#FF4444', fontSize: '10px', cursor: 'pointer',
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              </Popup>
-            </Marker>
-          ))}
+                </Popup>
+              </Marker>
+            );
+          })}
         </MapContainer>
 
         {/* Map Controls */}
@@ -247,8 +301,8 @@ const TripStopCreator: React.FC = () => {
           backgroundColor: '#1A1A1A', border: '1px solid #2A2A2A', borderRadius: '10px',
           padding: '8px', display: 'flex', flexDirection: 'column', gap: '6px', zIndex: 20,
         }}>
-          <button 
-            title="Zoom in" 
+          <button
+            title="Zoom in"
             onClick={() => mapRef.current?.zoomIn()}
             style={{
               width: '36px', height: '36px', borderRadius: '8px', border: '1px solid #2A2A2A',
@@ -257,8 +311,8 @@ const TripStopCreator: React.FC = () => {
           >
             +
           </button>
-          <button 
-            title="Zoom out" 
+          <button
+            title="Zoom out"
             onClick={() => mapRef.current?.zoomOut()}
             style={{
               width: '36px', height: '36px', borderRadius: '8px', border: '1px solid #2A2A2A',
@@ -268,8 +322,8 @@ const TripStopCreator: React.FC = () => {
             −
           </button>
           <div style={{ height: '1px', backgroundColor: '#2A2A2A' }} />
-          <button 
-            title="Fit all stops" 
+          <button
+            title="Fit all stops"
             onClick={fitAllStops}
             style={{
               width: '36px', height: '36px', borderRadius: '8px', border: '1px solid #2A2A2A',
@@ -282,7 +336,7 @@ const TripStopCreator: React.FC = () => {
         </div>
 
         {/* Map Instructions */}
-        {stops.length === 0 && (
+        {stops.length === 0 && !isCreatingMode && (
           <div style={{
             position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
             backgroundColor: 'rgba(17,17,17,0.95)', border: '1px solid #2A2A2A', borderRadius: '14px',
@@ -293,28 +347,31 @@ const TripStopCreator: React.FC = () => {
               Create Trip Stops
             </p>
             <p style={{ color: '#888', fontSize: '13px', margin: '0 0 16px' }}>
-              Click anywhere on the map to add a stop
+              Click 'Add Stop' to begin marking stops on the map.
             </p>
-            <div style={{ 
-              width: '48px', height: '48px', borderRadius: '999px', 
-              backgroundColor: 'rgba(255,208,0,0.15)', border: '2px dashed #FFD000',
-              display: 'grid', placeItems: 'center', margin: '0 auto',
-              animation: 'pulse 2s infinite',
-            }}>
-              <span style={{ color: '#FFD000', fontSize: '20px', fontWeight: 700 }}>+</span>
-            </div>
+          </div>
+        )}
+
+        {isCreatingMode && (
+          <div style={{
+            position: 'absolute', top: '24px', left: '50%', transform: 'translateX(-50%)',
+            backgroundColor: '#FFD000', color: '#000', borderRadius: '8px',
+            padding: '10px 16px', fontWeight: 700, fontSize: '14px', zIndex: 20,
+            boxShadow: '0 4px 12px rgba(255,208,0,0.3)', pointerEvents: 'none',
+          }}>
+            Creation Mode: Click on the map to place a stop
           </div>
         )}
       </main>
 
       {/* ── Right Panel: Stop List ─────────────────────────────────── */}
-      <aside style={{ 
-        width: '300px', minWidth: '300px', backgroundColor: '#111111', 
-        borderLeft: '1px solid #2A2A2A', display: 'flex', flexDirection: 'column', 
+      <aside style={{
+        width: '300px', minWidth: '300px', backgroundColor: '#111111',
+        borderLeft: '1px solid #2A2A2A', display: 'flex', flexDirection: 'column',
         zIndex: 15, height: '100%',
       }}>
         {/* Panel Header */}
-        <div style={{ 
+        <div style={{
           padding: '16px', borderBottom: '1px solid #2A2A2A', flexShrink: 0,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
@@ -325,7 +382,7 @@ const TripStopCreator: React.FC = () => {
             </h2>
           </div>
           {stops.length > 0 && (
-            <button 
+            <button
               onClick={clearAllStops}
               style={{
                 height: '28px', padding: '0 10px', borderRadius: '6px', border: '1px solid rgba(255,68,68,0.3)',
@@ -339,7 +396,7 @@ const TripStopCreator: React.FC = () => {
         </div>
 
         {/* Stop Count */}
-        <div style={{ 
+        <div style={{
           padding: '10px 16px', borderBottom: '1px solid #2A2A2A', flexShrink: 0,
         }}>
           <span style={{ fontSize: '12px', color: '#888', fontWeight: 500 }}>
@@ -350,8 +407,8 @@ const TripStopCreator: React.FC = () => {
         {/* Stop List */}
         <div className="stops-list-scroll" style={{ flex: 1, overflowY: 'auto', padding: '12px' }}>
           {stops.length === 0 ? (
-            <div style={{ 
-              display: 'flex', flexDirection: 'column', alignItems: 'center', 
+            <div style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center',
               justifyContent: 'center', padding: '40px 16px', textAlign: 'center',
             }}>
               <MapPin size={28} color="#333" style={{ marginBottom: '12px' }} />
@@ -395,21 +452,21 @@ const TripStopCreator: React.FC = () => {
                           fontSize: '12px', outline: 'none',
                         }}
                       />
-                      <button 
+                      <button
                         onClick={(e) => { e.stopPropagation(); saveEdit(); }}
                         style={{
                           width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #22C55E',
-                          backgroundColor: 'rgba(34,197,94,0.1)', color: '#22C55E', 
+                          backgroundColor: 'rgba(34,197,94,0.1)', color: '#22C55E',
                           display: 'grid', placeItems: 'center', cursor: 'pointer',
                         }}
                       >
                         ✓
                       </button>
-                      <button 
+                      <button
                         onClick={(e) => { e.stopPropagation(); cancelEdit(); }}
                         style={{
                           width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #2A2A2A',
-                          backgroundColor: 'transparent', color: '#888', 
+                          backgroundColor: 'transparent', color: '#888',
                           display: 'grid', placeItems: 'center', cursor: 'pointer',
                         }}
                       >
@@ -422,8 +479,8 @@ const TripStopCreator: React.FC = () => {
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <GripVertical size={14} color="#555" />
-                          <span style={{ 
-                            backgroundColor: '#FFD000', color: '#0D0D0D', 
+                          <span style={{
+                            backgroundColor: '#FFD000', color: '#0D0D0D',
                             fontWeight: 800, fontSize: '11px', borderRadius: '50%',
                             width: '22px', height: '22px', display: 'grid', placeItems: 'center',
                           }}>
@@ -491,6 +548,47 @@ const TripStopCreator: React.FC = () => {
               ))}
             </div>
           )}
+        </div>
+        
+        {/* Actions Footer */}
+        <div style={{ 
+          padding: '16px', borderTop: '1px solid #2A2A2A', flexShrink: 0,
+          display: 'flex', flexDirection: 'column', gap: '10px', backgroundColor: '#111111'
+        }}>
+          <button
+            onClick={() => setIsCreatingMode(!isCreatingMode)}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+              height: '42px', borderRadius: '8px', 
+              backgroundColor: isCreatingMode ? '#1D1D1D' : 'transparent', 
+              border: isCreatingMode ? '1px solid #FFD000' : '1px solid #333',
+              color: isCreatingMode ? '#FFD000' : '#FFF', fontSize: '13px', fontWeight: 600,
+              cursor: 'pointer', transition: 'all 0.2s ease',
+            }}
+          >
+            {isCreatingMode ? (
+              <>
+                <X size={16} /> Stop Creating
+              </>
+            ) : (
+              <>
+                <Plus size={16} /> Add New Stop
+              </>
+            )}
+          </button>
+          
+          <button
+            onClick={handleSaveTrip}
+            disabled={stops.length === 0}
+            style={{
+              height: '42px', borderRadius: '8px', border: 'none',
+              backgroundColor: stops.length > 0 ? '#FFD000' : '#333',
+              color: stops.length > 0 ? '#000' : '#666', fontSize: '13px', fontWeight: 700,
+              cursor: stops.length > 0 ? 'pointer' : 'not-allowed', transition: 'all 0.2s ease',
+            }}
+          >
+            Save Trip Configuration
+          </button>
         </div>
       </aside>
 
