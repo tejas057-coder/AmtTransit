@@ -1,19 +1,55 @@
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
-interface ToastProps {
-  title?: string;
+export interface Toast {
+  id: string;
+  title: string;
   description?: string;
-  variant?: 'default' | 'destructive';
+  variant?: 'default' | 'success' | 'destructive' | 'warning';
+  duration?: number;
 }
 
-export function useToast() {
-  const [toasts, setToasts] = useState<ToastProps[]>([]);
+interface ToastContextType {
+  toasts: Toast[];
+  toast: (toast: Omit<Toast, 'id'>) => void;
+  dismiss: (id: string) => void;
+}
 
-  const toast = useCallback(({ title, description, variant }: ToastProps) => {
-    console.log(`[Toast] ${variant === 'destructive' ? '❌' : '✅'} ${title}: ${description}`);
-    // In a real app, this would trigger a UI component.
-    // For now, let's keep it simple.
+let globalToasts: Toast[] = [];
+let listeners: Array<(toasts: Toast[]) => void> = [];
+
+const notifyListeners = () => {
+  listeners.forEach(listener => listener([...globalToasts]));
+};
+
+export const useToast = (): ToastContextType => {
+  const [toasts, setToasts] = useState<Toast[]>(globalToasts);
+
+  useEffect(() => {
+    listeners.push(setToasts);
+    return () => {
+      listeners = listeners.filter(l => l !== setToasts);
+    };
   }, []);
 
-  return { toast };
-}
+  const toast = useCallback(({ title, description, variant = 'default', duration = 4000 }: Omit<Toast, 'id'>) => {
+    const id = Math.random().toString(36).substr(2, 9);
+    const newToast: Toast = { id, title, description, variant, duration };
+    
+    globalToasts = [...globalToasts, newToast];
+    notifyListeners();
+
+    if (duration !== Infinity) {
+      setTimeout(() => {
+        globalToasts = globalToasts.filter(t => t.id !== id);
+        notifyListeners();
+      }, duration);
+    }
+  }, []);
+
+  const dismiss = useCallback((id: string) => {
+    globalToasts = globalToasts.filter(t => t.id !== id);
+    notifyListeners();
+  }, []);
+
+  return { toasts, toast, dismiss };
+};

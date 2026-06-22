@@ -10,6 +10,7 @@ import TripStopCreator from './pages/TripStopCreator';
 import TripsAnalytics from './pages/TripsAnalytics';
 import SettingsPage from './pages/SettingsPage';
 import AdminLayout from './components/layout/AdminLayout';
+import { ToastContainer } from './components/ToastContainer';
 import { adminColors } from './lib/adminDesignTokens';
 
 const getAdminAuthState = () => {
@@ -46,6 +47,7 @@ function App() {
 
   return (
     <div style={{ backgroundColor: adminColors.background.page, minHeight: '100vh' }}>
+      <ToastContainer />
       <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
           {/* Login Route */}

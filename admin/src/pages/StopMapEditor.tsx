@@ -227,13 +227,26 @@ export default function StopMapEditor() {
       
       console.log('Normalized stops:', normalized);
       setStops(normalized);
+      
+      // Show toast on initial load (not silent)
+      if (!silent && data.length > 0) {
+        toast({
+          title: "Stops Loaded",
+          description: `Successfully loaded ${data.length} stops from database.`,
+          variant: "success",
+          duration: 3000
+        });
+      }
     } catch (err: any) {
       console.error("Fetch stops error:", err.message);
-      toast({ 
-        title: "Failed to load stops", 
-        description: err.message || "Make sure backend server is running",
-        variant: "destructive" 
-      });
+      if (!silent) {
+        toast({ 
+          title: "Failed to load stops", 
+          description: err.message || "Make sure backend server is running",
+          variant: "destructive",
+          duration: 6000
+        });
+      }
     } finally {
       if (!silent) setLoading(false);
     }
@@ -249,8 +262,9 @@ export default function StopMapEditor() {
     setPendingPin(null);
     setEditingStop(null);
     toast({ 
-        title: "Manual Creation Started", 
+        title: "Placement Mode Activated", 
         description: "Click anywhere on the map to set the stop location.",
+        variant: "default"
     });
   };
 
@@ -268,6 +282,7 @@ export default function StopMapEditor() {
     toast({ 
         title: "Location Marked", 
         description: `Pin placed at ${lat.toFixed(5)}, ${lng.toFixed(5)}. Fill in the details below.`,
+        variant: "success"
     });
   };
 
@@ -282,7 +297,7 @@ export default function StopMapEditor() {
       toast({ 
         title: "Location Required", 
         description: "Click anywhere on the map to mark the stop location before saving.",
-        variant: "destructive"
+        variant: "warning"
       });
       return;
     }
@@ -339,6 +354,8 @@ export default function StopMapEditor() {
       toast({ 
         title: editingStop ? "Stop Updated" : "Stop Created", 
         description: `Successfully saved ${stopName} to database.`,
+        variant: "success",
+        duration: 5000
       });
       
       const newStopId = result.data?.id || editingStop?.id;
@@ -363,7 +380,8 @@ export default function StopMapEditor() {
       toast({ 
         title: "Failed to save", 
         description: err.message || "Check if backend server is running and database table exists.", 
-        variant: "destructive" 
+        variant: "destructive",
+        duration: 6000
       });
     } finally {
       setSaving(false);
@@ -383,15 +401,37 @@ export default function StopMapEditor() {
 
   const handleDelete = async (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    
+    // Find the stop name for the toast message
+    const stopToDelete = stops.find(s => s.id === id);
+    const stopName = stopToDelete?.stop_name || stopToDelete?.name || 'Stop';
+    
     setDeleting(id);
     try {
-      const { error } = await supabase.from('stops').delete().eq('id', id);
-      if (error) throw error;
-      toast({ title: "Stop removed" });
+      const response = await fetch(`http://localhost:5000/api/stops/${id}`, {
+        method: 'DELETE'
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Delete failed');
+      }
+      
+      toast({ 
+        title: "Stop Deleted", 
+        description: `${stopName} has been removed from the database.`,
+        variant: "destructive"
+      });
+      
       handleCancel();
-      fetchStops(true);
+      await fetchStops(true);
     } catch (err: any) {
-      toast({ title: "Operation failed", description: err.message, variant: "destructive" });
+      toast({ 
+        title: "Delete Failed", 
+        description: err.message || "Could not delete the stop.", 
+        variant: "destructive" 
+      });
     } finally {
       setDeleting(null);
     }
